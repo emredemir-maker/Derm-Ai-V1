@@ -180,7 +180,6 @@ fun FaceMapDiagnosticCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
             .background(SurfaceCard, RoundedCornerShape(24.dp))
             .border(1.dp, BorderDefault, RoundedCornerShape(24.dp))
             .padding(16.dp),

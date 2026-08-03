@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.SkinCareViewModel
@@ -97,48 +98,55 @@ fun ProfileSetupScreen(
 
     if (showScanResultDialog && scanAnalysis != null) {
         val lastPhotoPath by viewModel.lastScannedPhotoPath.collectAsState()
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showScanResultDialog = false },
-            confirmButton = {},
-            dismissButton = {},
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            text = {
-                FaceMapDiagnosticCard(
-                    analysisResult = scanAnalysis,
-                    photoPath = lastPhotoPath,
-                    userConcerns = selectedConcerns.toList(),
-                    onApplyToProfile = { skinType, concernsList, goal ->
-                        val mappedType = when {
-                            skinType.contains("Kuru", ignoreCase = true) -> "Kuru"
-                            skinType.contains("Yağlı", ignoreCase = true) -> "Yağlı"
-                            skinType.contains("Hassas", ignoreCase = true) -> "Hassas"
-                            skinType.contains("Normal", ignoreCase = true) -> "Normal"
-                            else -> "Karma"
-                        }
-                        val mappedC = mapToStandardConcerns(concernsList)
-                        val mappedG = mapToStandardGoal(goal)
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .fillMaxHeight(0.88f),
+                color = SurfacePage,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp)
+                ) {
+                    FaceMapDiagnosticCard(
+                        analysisResult = scanAnalysis,
+                        photoPath = lastPhotoPath,
+                        userConcerns = selectedConcerns.toList(),
+                        onApplyToProfile = { skinType, concernsList, goal ->
+                            val mappedType = when {
+                                skinType.contains("Kuru", ignoreCase = true) -> "Kuru"
+                                skinType.contains("Yağlı", ignoreCase = true) -> "Yağlı"
+                                skinType.contains("Hassas", ignoreCase = true) -> "Hassas"
+                                skinType.contains("Normal", ignoreCase = true) -> "Normal"
+                                else -> "Karma"
+                            }
+                            val mappedC = mapToStandardConcerns(concernsList)
+                            val mappedG = mapToStandardGoal(goal)
 
-                        selectedSkinType = mappedType
-                        if (mappedC.isNotEmpty()) {
-                            selectedConcerns = mappedC.toSet()
-                        }
-                        selectedGoal = mappedG
+                            selectedSkinType = mappedType
+                            if (mappedC.isNotEmpty()) {
+                                selectedConcerns = mappedC.toSet()
+                            }
+                            selectedGoal = mappedG
 
-                        showScanResultDialog = false
-                        currentStep = 1 // Take user to Step 1 (Olası Problemler) to review and edit!
-                    },
-                    onRetakePhoto = {
-                        showScanResultDialog = false
-                        showCameraForScan = true
-                    }
-                )
-            },
-            containerColor = SurfacePage,
-            shape = RoundedCornerShape(24.dp)
-        )
+                            showScanResultDialog = false
+                            currentStep = 1 // Take user to Step 1 (Olası Problemler) to review and edit!
+                        },
+                        onRetakePhoto = {
+                            showScanResultDialog = false
+                            showCameraForScan = true
+                        }
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(

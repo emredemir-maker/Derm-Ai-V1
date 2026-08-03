@@ -1,4 +1,7 @@
-package com.example
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example
 
 import android.os.Build
 import android.os.Bundle
@@ -74,7 +77,7 @@ class MainActivity : ComponentActivity() {
                                     verticalAlignment = Alignment.Bottom
                                 ) {
                                     NavBarItem(0, currentTab, "Analiz", Icons.Default.Home) { currentTab = 0 }
-                                    NavBarItem(1, currentTab, "Harita", Icons.Default.Face) { currentTab = 1 }
+                                    NavBarItem(1, currentTab, "Öneriler", Icons.Default.ShoppingBag) { currentTab = 1 }
                                     
                                     // Center FAB
                                     Column(
@@ -96,7 +99,7 @@ class MainActivity : ComponentActivity() {
                                         Text("Danışman", fontSize = 11.sp, fontWeight = if (currentTab == 3) FontWeight.SemiBold else FontWeight.Medium, color = if (currentTab == 3) Purple600 else TextSecondary, modifier = Modifier.offset(y = (-24).dp))
                                     }
                                     
-                                    NavBarItem(2, currentTab, "Öneriler", Icons.Default.ShoppingBag) { currentTab = 2 }
+                                    NavBarItem(2, currentTab, "Günlük", Icons.Default.CalendarToday) { currentTab = 2 }
                                     NavBarItem(4, currentTab, "İçerik", Icons.Default.DocumentScanner) { currentTab = 4 }
                                 }
                             }
@@ -105,16 +108,16 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     val modifier = Modifier.padding(innerPadding)
                     if (skinProfile == null) {
-                        ProfileSetupScreen(viewModel = viewModel, onCompleted = { currentTab = 0 }, modifier = modifier)
+                        ProfileSetupScreen(viewModel = viewModel, onCompleted = { currentTab = 0 })
                     } else if (showMakeupAnalysis) {
-                        MakeupAnalysisScreen(viewModel = viewModel, onNavigateBack = { showMakeupAnalysis = false }, modifier = modifier)
+                        MakeupAnalysisScreen(viewModel = viewModel, onNavigateBack = { showMakeupAnalysis = false })
                     } else {
                         when (currentTab) {
-                            0 -> HomeScreen(viewModel = viewModel, onNavigateToMakeupAnalysis = { showMakeupAnalysis = true }, onNavigateToFaceMap = { currentTab = 1 }, modifier = modifier)
-                            1 -> FaceMapScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)
-                            2 -> RecommendationsScreen(viewModel = viewModel, modifier = modifier)
-                            3 -> ChatScreen(viewModel = viewModel, modifier = modifier)
-                            4 -> IngredientScanScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)
+                            0 -> HomeScreen(viewModel = viewModel, onNavigateToMakeupAnalysis = { showMakeupAnalysis = true })
+                            1 -> RecommendationsScreen(viewModel = viewModel)
+                            2 -> DiaryScreen(viewModel = viewModel)
+                            3 -> ChatScreen(viewModel = viewModel)
+                            4 -> IngredientScanScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 })
                         }
                     }
                 }
@@ -135,3 +138,7 @@ fun RowScope.NavBarItem(index: Int, currentTab: Int, label: String, icon: androi
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = if (isSelected) Purple600 else TextMuted)
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/MainActivity.kt", "w", "utf-8") as f:
+    f.write(content)

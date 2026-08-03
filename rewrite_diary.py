@@ -1,4 +1,7 @@
-package com.example.ui.screens
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example.ui.screens
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -13,9 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.style.TextAlign
-
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,7 +45,7 @@ fun DiaryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 130.dp),
+                .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // Header
@@ -231,3 +231,7 @@ fun DiaryScreen(
         }
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/ui/screens/DiaryScreen.kt", "w", "utf-8") as f:
+    f.write(content)

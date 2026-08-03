@@ -1,63 +1,77 @@
+import re
+
 with open("app/src/main/java/com/example/ui/screens/ProfileSetupScreen.kt", "r") as f:
     content = f.read()
 
-old_header = """                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+# Add a DetailedAnalysisCard below the basic scan result card.
+new_card_code = """
+                                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 4.dp))
+                                
+                                if (result.eyeAreaAnalysis.isNotEmpty() && result.eyeAreaAnalysis != "null") {
                                     Text(
-                                        "Yapay Zeka Taraması Uygulandı!",
-                                        fontSize = 14.sp,
+                                        text = "Göz Çevresi: ${result.eyeAreaAnalysis}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                                if (result.makeupEvaluation.isNotEmpty() && result.makeupEvaluation != "null") {
+                                    Text(
+                                        text = "Makyaj Analizi: ${result.makeupEvaluation}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                                
+                                if (result.faceMapRegions.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Yüz Haritası (Saptanan Sorunlar):",
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                }"""
+                                    result.faceMapRegions.forEach { region ->
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 2.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LocationOn,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp).padding(top = 2.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Column {
+                                                Text(
+                                                    text = "${region.regionName}: ${region.issue}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onBackground
+                                                )
+                                                Text(
+                                                    text = "Öneri: ${region.recommendedIngredient}",
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+"""
 
-new_header = """                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Text(
-                                            "Yapay Zeka Taraması Uygulandı!",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    
-                                    val confidenceColor = when {
-                                        result.confidenceScore >= 80 -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                                        result.confidenceScore >= 50 -> androidx.compose.ui.graphics.Color(0xFFFF9800)
-                                        else -> androidx.compose.ui.graphics.Color(0xFFF44336)
-                                    }
-                                    Surface(
-                                        color = confidenceColor.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "%${result.confidenceScore} Güvenilirlik",
-                                            color = confidenceColor,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }"""
-content = content.replace(old_header, new_header)
+target = """                                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 4.dp))"""
+
+# Insert the new code right after the target. (Replacing target with target + new_code)
+# But wait, we also have the Row with "Seçimleri aşağıdan değiştirebilirsiniz." below it.
+# Let's replace target with new_card_code because new_card_code includes target at the top.
+
+if target in content:
+    content = content.replace(target, new_card_code)
+else:
+    print("Could not find the target to insert detailed analysis.")
 
 with open("app/src/main/java/com/example/ui/screens/ProfileSetupScreen.kt", "w") as f:
     f.write(content)

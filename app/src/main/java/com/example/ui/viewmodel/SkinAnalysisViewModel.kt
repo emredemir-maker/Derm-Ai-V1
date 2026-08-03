@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 
 class SkinAnalysisViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val _lastScannedPhotoPath = MutableStateFlow<String?>(null)
+    val lastScannedPhotoPath: StateFlow<String?> = _lastScannedPhotoPath.asStateFlow()
+
     private val _scanProfileAnalysis = MutableStateFlow<ProfileAnalysisResult?>(null)
     val scanProfileAnalysis: StateFlow<ProfileAnalysisResult?> = _scanProfileAnalysis.asStateFlow()
 
@@ -25,6 +28,7 @@ class SkinAnalysisViewModel(application: Application) : AndroidViewModel(applica
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     fun analyzeScanForProfile(photoPath: String) {
+        _lastScannedPhotoPath.value = photoPath
         viewModelScope.launch {
             _isScanLoading.value = true
             _errorMessage.value = null

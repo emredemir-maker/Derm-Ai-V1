@@ -1,4 +1,7 @@
-package com.example.ui.screens
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example.ui.screens
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -16,8 +19,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.SkinCareViewModel
@@ -29,7 +30,7 @@ fun IngredientScanScreen(
     onNavigateToChat: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val analysisResult by viewModel.ingredientAnalysis.collectAsState()
+    val analysisResult by viewModel.ingredientAnalysisResult.collectAsState()
     val isAnalyzing by viewModel.isScanLoading.collectAsState()
     var showCameraForScan by remember { mutableStateOf(false) }
 
@@ -37,7 +38,7 @@ fun IngredientScanScreen(
         CameraCaptureView(
             onPhotoCaptured = { file ->
                 showCameraForScan = false
-                viewModel.analyzeProductIngredients(file.absolutePath, null)
+                viewModel.analyzeProductScan(file.absolutePath)
             },
             onDismiss = { showCameraForScan = false }
         )
@@ -61,7 +62,7 @@ fun IngredientScanScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 140.dp)
+                    .padding(bottom = 100.dp)
             ) {
                 // Header
                 Row(
@@ -71,7 +72,7 @@ fun IngredientScanScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(38.dp).background(SurfaceCard, CircleShape).border(1.dp, BorderDefault, CircleShape).clickable { viewModel.clearIngredientAnalysis() }, contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(38.dp).background(SurfaceCard, CircleShape).border(1.dp, BorderDefault, CircleShape).clickable { viewModel.clearScanAnalysis() }, contentAlignment = Alignment.Center) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Navy700, modifier = Modifier.size(20.dp))
                     }
                     Text("Tarama sonucu", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
@@ -198,7 +199,7 @@ fun IngredientScanScreen(
                     .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
                 Button(
-                    onClick = { viewModel.clearIngredientAnalysis() },
+                    onClick = { viewModel.clearScanAnalysis() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(0.dp)
@@ -296,3 +297,7 @@ fun RowScope.HubTab(title: String, icon: androidx.compose.ui.graphics.vector.Ima
         Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (active) White else Purple600)
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/ui/screens/IngredientScanScreen.kt", "w", "utf-8") as f:
+    f.write(content)

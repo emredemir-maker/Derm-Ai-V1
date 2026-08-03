@@ -16,7 +16,34 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-data class ProfileAnalysisResult(val skinType: String, val concerns: List<String>, val goal: String, val explanation: String, val confidenceScore: Int = 0)
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class FaceRegionIssue(
+    val regionName: String = "",
+    val issue: String = "",
+    val recommendedIngredient: String = "",
+    val x: Float = 0f,
+    val y: Float = 0f
+)
+
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class ProfileAnalysisResult(
+    val skinType: String = "",
+    val concerns: List<String> = emptyList(),
+    val goal: String = "",
+    val explanation: String = "",
+    val eyeAreaAnalysis: String = "",
+    val makeupEvaluation: String = "",
+    val skinHealthScore: Int = 0,
+    val confidenceScore: Int = 0,
+    val faceMapRegions: List<FaceRegionIssue> = emptyList()
+)
+
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class MakeupAnalysisResult(
+    val overallEvaluation: String = "",
+    val whatToDo: List<String> = emptyList(),
+    val whatNotToDo: List<String> = emptyList()
+)
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class GeminiRecommendationResponse(
@@ -406,11 +433,11 @@ object GeminiRepository {
     }
 
     suspend fun analyzeSkinForProfile(photoPath: String): ProfileAnalysisResult? {
-        val file = File(photoPath)
+        val file = java.io.File(photoPath)
         if (!file.exists()) return null
         
         val base64Data = try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+            val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath) ?: return null
             val maxDimension = 768
             val width = bitmap.width
             val height = bitmap.height
@@ -421,109 +448,150 @@ object GeminiRepository {
                 } else {
                     Pair((maxDimension * srcAspect).toInt(), maxDimension)
                 }
-                Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+                android.graphics.Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
             } else {
                 bitmap
             }
-            val outputStream = ByteArrayOutputStream()
-            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-            Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+            val outputStream = java.io.ByteArrayOutputStream()
+            resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 70, outputStream)
+            android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
         } catch (e: Exception) {
             e.printStackTrace()
             return null
         }
 
         val systemPrompt = """
-            Sen profesyonel bir Dermatolog ve Yapay Zeka Cilt Analiz Uzmanısın.
-            Gönderilen cilt selfie fotoğrafını analiz ederek kullanıcının cilt özelliklerini tahmin etmelisin.
+            Sen profesyonel bir Dermatolog ve Yapay Zeka Makyaj/Cilt Analiz Uzmanısın.
+            Gönderilen cilt selfie (ön veya profil) fotoğrafını detaylı ve dürüst bir şekilde analiz etmelisin.
+            Ciltteki lekeler, siyah noktalar, gözenek tıkanıklıkları, akne/sivilceler, kızarıklık, kırışıklık ve göz çevresi problemlerini eksiksiz tespit et.
             
-            Yanıtını SADECE aşağıdaki şablona tam olarak uyarak ver. Başka hiçbir açıklama, giriş veya çıkış metni ekleme.
+            ÖNEMLİ DEĞERLENDİRME VE PUANLAMA KURALLARI:
+            - "skinHealthScore": Ciltteki leke, siyah nokta, akne, kızarıklık ve pürüz durumuna göre 0-100 arası DÜRÜST VE GERÇEKÇİ bir cilt sağlığı puanı hesapla.
+            - Eğer ciltte belirgin lekeler, siyah noktalar veya akneler varsa KESİNLİKLE YÜKSEK PUAN (80+) VERME! Gerçekçi olarak 50-68 arasında tut.
+            - Cilt pürüzsüz ve sorunsuzsa 80-92 arası ver. Sorun sayısı arttıkça puan düşmelidir.
+            - Tespit ettiğin sorunların yüzde tam nerede olduğunu (x, y) koordinatlarıyla (0.0 ile 1.0 arasında) ver.
             
-            ŞABLON:
-            SKIN_TYPE: [Değer]
-            CONCERNS: [Değerler]
-            GOAL: [Değer]
-            EXPLANATION: [Açıklama]
-            CONFIDENCE: [Değer]
+            Yanıtını SADECE aşağıdaki JSON formatında vermelisin. Başka metin veya markdown ekleme (```json gibi şeyler koyma).
             
-            Geçerli Değerler:
-            - SKIN_TYPE için şunlardan sadece biri olmalıdır: Kuru, Yağlı, Karma, Hassas, Normal
-            - CONCERNS için şunlardan biri veya birkaçı virgülle ayrılmış olmalıdır (veya bulunamazsa boş bırakılabilir): Akne & Sivilce, Siyah Noktalar, Geniş Gözenekler, Lekeler & Pigmentasyon, Kırışıklık & İnce Çizgiler, Kızarıklık, Kuruluk & Pullanma
-            - GOAL için şunlardan sadece biri olmalıdır: Nemlendirme, Aydınlatma & Parlaklık, Yaşlanma Karşıtı (Anti-Aging), Sivilce Kontrolü, Cilt Bariyeri Güçlendirme
-            - EXPLANATION için: Cildi fotoğraftan nasıl analiz ettiğini açıklayan samimi, Türkçe, maksimum 2 kısa cümlelik bir açıklama.
-            - CONFIDENCE için: 0 ile 100 arasında bir tamsayı. Görüntü kalitesi ve analizine ne kadar güvendiğini belirt.
+            {
+                "skinType": "Kuru | Yağlı | Karma | Hassas | Normal",
+                "concerns": ["Akne & Sivilce", "Lekeler & Pigmentasyon", "Siyah Noktalar"],
+                "goal": "Nemlendirme | Sivilce Kontrolü | Aydınlatma & Parlaklık",
+                "explanation": "Cilt durumunun detaylı, dürüst ve objektif analizi...",
+                "eyeAreaAnalysis": "Göz bölgesinin detaylı analizi",
+                "makeupEvaluation": "Makyaj tespit edilmedi / Varsa değerlendirmesi",
+                "skinHealthScore": 62,
+                "confidenceScore": 95,
+                "faceMapRegions": [
+                    {
+                        "regionName": "Burun & T-Bölgesi",
+                        "issue": "Siyah noktalar & Gözenek genişlemesi",
+                        "recommendedIngredient": "Salisilik Asit (BHA %2)",
+                        "x": 0.5,
+                        "y": 0.45
+                    }
+                ]
+            }
         """.trimIndent()
 
         val request = GenerateContentRequest(
             contents = listOf(
                 Content(
                     parts = listOf(
-                        Part(text = "Lütfen bu selfie'yi analiz et."),
+                        Part(text = "Bu yüzü çok detaylı analiz et, göz bölgesi, profil/ön durumu, makyaj varsa doğruluğu ve yüz haritası çıkar."),
                         Part(inlineData = InlineData(mimeType = "image/jpeg", data = base64Data))
                     )
                 )
             ),
             systemInstruction = Content(parts = listOf(Part(text = systemPrompt))),
-            generationConfig = GenerationConfig(temperature = 0.2f)
+            generationConfig = GenerationConfig(temperature = 0.3f, responseMimeType = "application/json")
         )
 
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
             val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
             
-            var skinType = "Normal"
-            val concernsList = mutableListOf<String>()
-            var goal = "Nemlendirme"
-            var explanation = ""
-            var confidenceScore = 85
-            
-            val lines = text.split("\n")
-            for (line in lines) {
-                val parts = line.split(":", limit = 2)
-                if (parts.size == 2) {
-                    val key = parts[0].trim().uppercase()
-                    val value = parts[1].trim()
-                    when (key) {
-                        "SKIN_TYPE" -> {
-                            val matched = listOf("Kuru", "Yağlı", "Karma", "Hassas", "Normal").find { it.equals(value, ignoreCase = true) }
-                            if (matched != null) {
-                                skinType = matched
-                            }
-                        }
-                        "CONCERNS" -> {
-                            val items = value.split(",")
-                            val allowedConcerns = listOf("Akne & Sivilce", "Siyah Noktalar", "Geniş Gözenekler", "Lekeler & Pigmentasyon", "Kırışıklık & İnce Çizgiler", "Kızarıklık", "Kuruluk & Pullanma")
-                            for (item in items) {
-                                val trimmed = item.trim()
-                                val matched = allowedConcerns.find { it.equals(trimmed, ignoreCase = true) }
-                                if (matched != null) {
-                                    concernsList.add(matched)
-                                }
-                            }
-                        }
-                        "GOAL" -> {
-                            val allowedGoals = listOf("Nemlendirme", "Aydınlatma & Parlaklık", "Yaşlanma Karşıtı (Anti-Aging)", "Sivilce Kontrolü", "Cilt Bariyeri Güçlendirme")
-                            val matched = allowedGoals.find { it.equals(value, ignoreCase = true) }
-                            if (matched != null) {
-                                goal = matched
-                            }
-                        }
-                        "EXPLANATION" -> {
-                            explanation = value
-                        }
-                        "CONFIDENCE" -> {
-                            confidenceScore = value.toIntOrNull() ?: 85
-                        }
-                    }
-                }
-            }
-            
-            ProfileAnalysisResult(skinType, concernsList, goal, explanation, confidenceScore)
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
+            val adapter = moshi.adapter(ProfileAnalysisResult::class.java)
+            adapter.fromJson(text)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
+
+    
+    suspend fun analyzeMakeup(photoPath: String): MakeupAnalysisResult? {
+        val file = java.io.File(photoPath)
+        if (!file.exists()) return null
+        
+        val base64Data = try {
+            val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath) ?: return null
+            val maxDimension = 768
+            val width = bitmap.width
+            val height = bitmap.height
+            val resizedBitmap = if (width > maxDimension || height > maxDimension) {
+                val srcAspect = width.toFloat() / height.toFloat()
+                val (newWidth, newHeight) = if (srcAspect > 1.0f) {
+                    Pair(maxDimension, (maxDimension / srcAspect).toInt())
+                } else {
+                    Pair((maxDimension * srcAspect).toInt(), maxDimension)
+                }
+                android.graphics.Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+            } else {
+                bitmap
+            }
+            val outputStream = java.io.ByteArrayOutputStream()
+            resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 70, outputStream)
+            android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
+
+        val systemPrompt = """
+            Sen profesyonel bir Güzellik Uzmanı, Makyaj Artisti ve Yapay Zeka Analistisin.
+            Gönderilen fotoğraftaki kişinin makyajını analiz edip şu başlıklarda detaylı öneriler sunmalısın:
+            1. Genel değerlendirme (Kullanıcının yüz hatlarına makyajın uyumu, renk seçimleri).
+            2. Neler Yapmalısınız? (Daha iyi bir görünüm için uygulanması gereken doğru makyaj teknikleri).
+            3. Neler Yapmamalısınız? (Yapılan hatalar veya yüz hatlarına uygun olmayan teknikler).
+
+            Yanıtını SADECE aşağıdaki JSON formatında vermelisin:
+            {
+                "overallEvaluation": "Genel değerlendirme metni...",
+                "whatToDo": ["Daha aydınlık bir göz altı için...", "Allığı elmacık kemiklerinin üzerine..."],
+                "whatNotToDo": ["Koyu renk rujlardan kaçının çünkü...", "Göz pınarlarında mat far kullanmayın..."]
+            }
+        """.trimIndent()
+
+        val request = GenerateContentRequest(
+            contents = listOf(
+                Content(
+                    parts = listOf(
+                        Part(text = "Bu fotoğraftaki makyajı analiz et ve bana neler yapıp yapmamam gerektiğini söyle."),
+                        Part(inlineData = InlineData(mimeType = "image/jpeg", data = base64Data))
+                    )
+                )
+            ),
+            systemInstruction = Content(parts = listOf(Part(text = systemPrompt))),
+            generationConfig = GenerationConfig(temperature = 0.3f, responseMimeType = "application/json")
+        )
+
+        return try {
+            val response = RetrofitClient.service.generateContent(apiKey, request)
+            val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
+            
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
+            val adapter = moshi.adapter(MakeupAnalysisResult::class.java)
+            adapter.fromJson(text)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    
+
 
     suspend fun fetchCustomRecommendations(
         skinType: String,
@@ -589,7 +657,7 @@ object GeminiRepository {
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
             
             val moshi = com.squareup.moshi.Moshi.Builder()
-                .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+                
                 .build()
             val adapter = moshi.adapter(GeminiRecommendationResponse::class.java)
             adapter.fromJson(cleanJson(jsonText))
@@ -717,7 +785,7 @@ object GeminiRepository {
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
             
             val moshi = com.squareup.moshi.Moshi.Builder()
-                .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+                
                 .build()
             val adapter = moshi.adapter(IngredientAnalysisResponse::class.java)
             adapter.fromJson(cleanJson(jsonText))
@@ -762,7 +830,7 @@ object GeminiRepository {
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
-            val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
             moshi.adapter(MarketProductListResponse::class.java).fromJson(cleanJson(jsonText))
         } catch (e: Exception) { null }
     }
@@ -795,7 +863,7 @@ object GeminiRepository {
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
-            val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
             moshi.adapter(PurchaseAdviceResponse::class.java).fromJson(cleanJson(jsonText))
         } catch (e: Exception) { null }
     }
@@ -831,7 +899,7 @@ object GeminiRepository {
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
-            val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
             moshi.adapter(WeeklyInventoryCheckResponse::class.java).fromJson(cleanJson(jsonText))
         } catch (e: Exception) { null }
     }
@@ -866,7 +934,7 @@ object GeminiRepository {
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: return null
-            val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
             moshi.adapter(ProductPriceComparisonResponse::class.java).fromJson(cleanJson(jsonText))
         } catch (e: Exception) { null }
     }

@@ -1,4 +1,7 @@
-package com.example.ui.screens
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example.ui.screens
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -28,7 +31,7 @@ fun ChatScreen(
     modifier: Modifier = Modifier
 ) {
     val messages by viewModel.chatMessages.collectAsState()
-    val isTyping by viewModel.isChatLoading.collectAsState()
+    val isTyping by viewModel.isChatTyping.collectAsState()
     var draft by remember { mutableStateOf("") }
     
     val listState = rememberScrollState()
@@ -123,7 +126,7 @@ fun ChatScreen(
                             .padding(horizontal = 15.dp, vertical = 13.dp)
                     ) {
                         Text(
-                            text = msg.text,
+                            text = msg.content,
                             fontSize = 14.sp,
                             color = if (isMe) White else Navy900,
                             lineHeight = 20.sp
@@ -218,3 +221,7 @@ fun QuickAskChip(text: String, onClick: (String) -> Unit) {
         Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Purple700)
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/ui/screens/ChatScreen.kt", "w", "utf-8") as f:
+    f.write(content)

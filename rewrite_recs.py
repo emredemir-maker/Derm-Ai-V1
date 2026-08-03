@@ -1,4 +1,7 @@
-package com.example.ui.screens
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example.ui.screens
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -134,7 +137,7 @@ fun RecommendationsScreen(
                 imageBg = Pink100
             )
             
-            Spacer(modifier = Modifier.height(130.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -240,3 +243,7 @@ fun ProductCard(
         }
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/ui/screens/RecommendationsScreen.kt", "w", "utf-8") as f:
+    f.write(content)

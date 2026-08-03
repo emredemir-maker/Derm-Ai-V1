@@ -3,16 +3,9 @@ import re
 with open("app/src/main/java/com/example/data/api/GeminiApi.kt", "r") as f:
     content = f.read()
 
-# Replace ProfileAnalysisResult
-old_result = """data class ProfileAnalysisResult(
-    val skinType: String,
-    val concerns: List<String>,
-    val goal: String,
-    val explanation: String,
-    val confidenceScore: Int = 0
-)"""
+target = "data class ProfileAnalysisResult(val skinType: String, val concerns: List<String>, val goal: String, val explanation: String, val confidenceScore: Int = 0)"
 
-new_result = """@com.squareup.moshi.JsonClass(generateAdapter = true)
+replacement = """@com.squareup.moshi.JsonClass(generateAdapter = true)
 data class FaceRegionIssue(
     val regionName: String = "",
     val issue: String = "",
@@ -32,7 +25,8 @@ data class ProfileAnalysisResult(
     val confidenceScore: Int = 0,
     val faceMapRegions: List<FaceRegionIssue> = emptyList()
 )"""
-content = content.replace(old_result, new_result)
+
+content = content.replace(target, replacement)
 
 with open("app/src/main/java/com/example/data/api/GeminiApi.kt", "w") as f:
     f.write(content)

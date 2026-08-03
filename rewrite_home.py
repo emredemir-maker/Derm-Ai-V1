@@ -1,4 +1,7 @@
-package com.example.ui.screens
+# -*- coding: utf-8 -*-
+import codecs
+
+content = """package com.example.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -23,7 +26,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.SkinCareViewModel
-import com.example.ui.viewmodel.calculateDynamicSkinScore
 import com.example.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,35 +36,17 @@ import com.example.R
 fun HomeScreen(
     viewModel: SkinCareViewModel,
     onNavigateToMakeupAnalysis: () -> Unit = {},
-    onNavigateToFaceMap: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val activeProfileState by viewModel.skinProfile.collectAsState()
-    val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
+    val activeProfile by viewModel.skinProfile.collectAsState()
     
     var routineTab by remember { mutableIntStateOf(0) }
     var routineState by remember { mutableStateOf(listOf(true, true, false, false, false)) }
     
-    val profile = activeProfileState ?: return
+    if (activeProfile == null) return
 
-    val profileConcernsList = profile.skinConcerns.split(",").map { it.trim() }.filter { it.isNotBlank() }
-
-    val score = remember(profile, scanAnalysis) {
-        calculateDynamicSkinScore(profile, scanAnalysis)
-    }
+    val score = activeProfile?.healthScore ?: 80
     val doneCount = routineState.count { it }
-
-    val statusTitle = when {
-        score < 65 -> "Yoğun Bakım İhtiyacı ⚠️"
-        score in 65..75 -> "Denge & Onarım İhtiyacı 🎯"
-        else -> "Işıldıyor ✨"
-    }
-
-    val statusDesc = when {
-        scanAnalysis?.explanation?.isNotBlank() == true -> scanAnalysis!!.explanation
-        profileConcernsList.isNotEmpty() -> "Ciltte ${profileConcernsList.take(3).joinToString(", ")} gibi odaklanılması gereken şikayetler mevcut."
-        else -> "Nem dengesi iyi, günlük düzenli koruyucu bakım önerilir."
-    }
     
     Column(
         modifier = modifier
@@ -80,11 +64,7 @@ fun HomeScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Merhaba, İpek 👋", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Navy900, lineHeight = 32.sp)
-                Text(
-                    text = if (score < 68) "Bugün cildinin özel bakıma ihtiyacı var 💆‍♀️" else "Bugün cildin dengede kalmaya devam ediyor ✨",
-                    fontSize = 14.sp,
-                    color = TextSecondary
-                )
+                Text("Bugün cildin harika görünüyor ✨", fontSize = 14.sp, color = TextSecondary)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -188,23 +168,19 @@ fun HomeScreen(
                             Text("/100", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextMuted)
                         }
                     }
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(statusTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (score < 65) Rose600 else Navy900)
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = if (score < 65) Rose600 else Purple500, modifier = Modifier.size(16.dp))
+                            Text("Işıldıyor", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Purple500, modifier = Modifier.size(16.dp))
                         }
-                        Text(statusDesc, fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp)
+                        Text("Nem dengesi iyi, T-bölgesinde hafif yağlanma var.", fontSize = 14.sp, color = TextSecondary)
                     }
                 }
                 
-                val puruzsuzukVal = "%${score.coerceIn(38, 95)}"
-                val bariyerVal = if (score < 65) "Zayıf" else if (score < 78) "Hassas" else "Güçlü"
-                val sebumVal = if (profile.skinType.lowercase().contains("yağlı")) "Aşırı" else if (profile.skinType.lowercase().contains("kuru")) "Düşük" else "Dengesiz"
-
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricBox(title = "PÜRÜZSÜZLÜK", value = puruzsuzukVal, colorTitle = if (score < 65) Rose600 else Blue600, colorValue = Navy900, bgColor = if (score < 65) Rose100 else Blue100, modifier = Modifier.weight(1f))
-                    MetricBox(title = "BARİYER", value = bariyerVal, colorTitle = if (score < 65) Rose600 else Green600, colorValue = Navy900, bgColor = if (score < 65) Rose100 else Mint100, modifier = Modifier.weight(1f))
-                    MetricBox(title = "SEBUM", value = sebumVal, colorTitle = Amber600, colorValue = Navy900, bgColor = Amber100, modifier = Modifier.weight(1f))
+                    MetricBox(title = "NEM", value = "%72", colorTitle = Blue600, colorValue = Navy900, bgColor = Blue100, modifier = Modifier.weight(1f))
+                    MetricBox(title = "BARİYER", value = "İyi", colorTitle = Green600, colorValue = Navy900, bgColor = Mint100, modifier = Modifier.weight(1f))
+                    MetricBox(title = "YAĞ", value = "Orta", colorTitle = Amber600, colorValue = Navy900, bgColor = Amber100, modifier = Modifier.weight(1f))
                 }
             }
             
@@ -228,24 +204,6 @@ fun HomeScreen(
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
             }
         }
-
-        // Interactive Face Map Section
-        val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
-        val lastPhotoPath by viewModel.lastScannedPhotoPath.collectAsState()
-        FaceMapDiagnosticCard(
-            analysisResult = scanAnalysis,
-            photoPath = lastPhotoPath,
-            userConcerns = profileConcernsList,
-            onApplyToProfile = { skinType, concerns, goal ->
-                viewModel.saveSkinProfile(
-                    skinType = skinType,
-                    skinConcerns = concerns,
-                    skincareGoal = goal,
-                    makeupPreference = "Doğal & Hafif (Yok Gibi Makyaj)"
-                )
-            },
-            onRetakePhoto = onNavigateToFaceMap
-        )
         
         // Checklist
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -323,7 +281,7 @@ fun HomeScreen(
             }
         }
         
-        Spacer(modifier = Modifier.height(130.dp))
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 
@@ -393,3 +351,7 @@ fun ChecklistItem(
         }
     }
 }
+"""
+
+with codecs.open("app/src/main/java/com/example/ui/screens/HomeScreen.kt", "w", "utf-8") as f:
+    f.write(content)

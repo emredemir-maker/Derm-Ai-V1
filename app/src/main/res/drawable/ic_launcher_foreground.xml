@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/ic_skin_logo"
+        android:drawable="@drawable/derm_ai_icon_1785774983019"
         android:gravity="center" />
 </layer-list>

@@ -1,0 +1,8 @@
+{
+  "name": "Derm-Ai",
+  "description": "A clinical-soft AI dermatology and skincare tracking application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

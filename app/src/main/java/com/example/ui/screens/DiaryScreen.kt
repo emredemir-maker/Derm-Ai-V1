@@ -25,6 +25,7 @@ import com.example.ui.theme.*
 @Composable
 fun DiaryScreen(
     viewModel: SkinCareViewModel,
+    onNavigateBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val activeProfile by viewModel.skinProfile.collectAsState()
@@ -54,11 +55,21 @@ fun DiaryScreen(
                     .fillMaxWidth()
                     .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 0.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Cilt günlüğün", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Navy900, lineHeight = 32.sp)
-                    Text("Ağustos · 18 kayıt · ortalama 4,1 / 5", fontSize = 12.sp, color = TextSecondary)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Navy900)
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Cilt Günlüğü & Takvim", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Navy900, lineHeight = 30.sp)
+                        Text("Ağustos 2026 · 18 kayıt · ortalama 4,1 / 5", fontSize = 12.sp, color = TextSecondary)
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -67,7 +78,7 @@ fun DiaryScreen(
                         .border(1.dp, BorderDefault, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Navy700, modifier = Modifier.size(19.dp))
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Purple600, modifier = Modifier.size(20.dp))
                 }
             }
             

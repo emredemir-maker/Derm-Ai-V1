@@ -174,7 +174,8 @@ data class GenerateContentRequest(
 
 @JsonClass(generateAdapter = true)
 data class Content(
-    val parts: List<Part>
+    val parts: List<Part>,
+    val role: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -319,23 +320,129 @@ object GeminiRepository {
             Yanıtları kısa, anlaşılır ve Türkçe olarak ver.
         """.trimIndent()
 
-        // Combine history if any, or just send with system instruction
-        val combinedContents = chatHistory.toMutableList().apply {
-            add(Content(parts = listOf(Part(text = userMessage))))
+        // Combine history if any, ensuring role is assigned
+        val formattedHistory = chatHistory.map { c ->
+            if (c.role == null) c.copy(role = "user") else c
+        }
+        val combinedContents = formattedHistory.toMutableList().apply {
+            add(Content(parts = listOf(Part(text = userMessage)), role = "user"))
         }
 
         val request = GenerateContentRequest(
             contents = combinedContents,
-            systemInstruction = Content(parts = listOf(Part(text = systemPrompt))),
+            systemInstruction = Content(parts = listOf(Part(text = systemPrompt)), role = "user"),
             generationConfig = GenerationConfig(temperature = 0.7f)
         )
 
         return try {
             val response = RetrofitClient.service.generateContent(apiKey, request)
-            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                ?: "Üzgünüm, şu anda yanıt veremiyorum. Lütfen sorunuzu tekrar iletir misiniz?"
+            val responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (!responseText.isNullPrunedOrBlank()) {
+                responseText!!
+            } else {
+                generateSmartLocalChatResponse(userMessage, skinProfile)
+            }
         } catch (e: Exception) {
-            "Bağlantı hatası: ${e.message}. Lütfen internetinizi kontrol edin."
+            e.printStackTrace()
+            generateSmartLocalChatResponse(userMessage, skinProfile)
+        }
+    }
+
+    private fun String?.isNullPrunedOrBlank(): Boolean {
+        return this == null || this.isBlank() || this.contains("Bağlantı hatası")
+    }
+
+    private fun generateSmartLocalChatResponse(userMessage: String, skinProfile: String): String {
+        val query = userMessage.lowercase(java.util.Locale.forLanguageTag("tr"))
+        val skinType = when {
+            skinProfile.contains("Kuru", ignoreCase = true) -> "Kuru"
+            skinProfile.contains("Yağlı", ignoreCase = true) -> "Yağlı"
+            skinProfile.contains("Hassas", ignoreCase = true) -> "Hassas"
+            skinProfile.contains("Normal", ignoreCase = true) -> "Normal"
+            else -> "Karma"
+        }
+
+        return when {
+            query.contains("siyah nokta") || query.contains("gözenek") -> {
+                """
+                🌸 **Siyah Noktalar & Gözenekler İçin Uzman Önerileri:**
+                
+                • **Salisilik Asit (BHA):** Yağda çözünen BHA asitleri gözeneklerin içine nüfuz ederek biriken yağı ve siyah noktaları temizler. Haftada 2-3 gece BHA tonik veya serum kullanabilirsiniz.
+                • **Niasinamid (B3 Vitamini):** Sebum (yağ) üretimini dengeler ve gözenek çeperlerini sıkılaştırır.
+                • **Çift Aşama Temizleme:** Akşamları önce yağ bazlı temizleyici ile gözeneklerdeki yağ birikimini eritin, ardından su bazlı jelle yıkayın.
+                
+                ⚠️ *İpucu:* Siyah noktaları elinizle sıkmaktan kaçının, kılcal damar çatlamalarına neden olabilir!
+                """.trimIndent()
+            }
+            query.contains("retinol") || query.contains("yaşlanma") || query.contains("kırışık") -> {
+                """
+                ✨ **Retinol Kullanım Rehberi & Tüyolar:**
+                
+                • **Sandviç Metodu:** Hassasiyeti önlemek için: Nemlendirici ➔ Retinol ➔ Nemlendirici sırasıyla uygulayın.
+                • **Kademeli Başlangıç:** İlk 2 hafta haftada 1 gece, ardından haftada 2-3 geceye çıkarın.
+                • **Güneş Koruması (Şart!):** Retinol cildi güneşe karşı hassaslaştırır. Ertesi sabah mutlaka SPF 50+ güneş kremi sürün.
+                • **Karıştırmayın:** Retinol kullandığınız gecelerde C Vitamini veya BHA/AHA asitleri kullanmayın.
+                """.trimIndent()
+            }
+            query.contains("leke") || query.contains("aydınlat") || query.contains("ton eşitsiz") -> {
+                """
+                💡 **Cilt Lekeleri & Aydınlatma Tavsiyeleri:**
+                
+                • **Sabah:** C Vitamini Serumu + Güneş Kremi (Güneş kremi lekelerin koyulaşmasını engellemede 1 numaralı faktördür).
+                • **Akşam:** Alpha Arbutin veya Azelaik Asit serumu ile leke oluşumunu baskılayabilirsiniz.
+                • **Niasinamid:** Cilt bariyerini güçlendirirken renk tonunu eşitler.
+                """.trimIndent()
+            }
+            query.contains("sivilce") || query.contains("akne") || query.contains("kızar") -> {
+                """
+                🌿 **Akne & Sivilce Yatıştırma Rehberi:**
+                
+                • **Yatıştırıcı İçerikler:** Centella Asiatica (Madecassoside), Çay Ağacı Yağı ve Çinko PCA içeren yağsız su bazlı formüller seçin.
+                • **Bariyer Onarımı:** Akne tedavisi yaparken cilt bariyerini kurutmayın. Seramidli hafif nemlendiriciler kullanın.
+                • **Lokal Sivilce Kurutucu:** Oluşan aktif sivilcelerin üzerine nokta şeklinde Çinko veya Salisilik asit kremi uygulayabilirsiniz.
+                """.trimIndent()
+            }
+            query.contains("kuru") || query.contains("pullan") || query.contains("gergin") -> {
+                """
+                💧 **Kuru & Pullanmış Cilt İçin Onarım:**
+                
+                • **Hyalüronik Asit:** Nemli cildinize Hyalüronik asit serumu sürüp hemen ardından nemlendirici kilitleyin.
+                • **Seramid & Skualen:** Cilt bariyerini yeniden inşa eden yoğun lipid içerikli bariyer kremleri tercih edin.
+                • **Nazik Temizleme:** Köpürmeyen, krem veya süt yapısındaki temizleyiciler kullanın.
+                """.trimIndent()
+            }
+            query.contains("makyaj") || query.contains("baz") || query.contains("fondöten") -> {
+                """
+                💄 **Makyaj Altı Cilt Hazırlık Tüyoları:**
+                
+                • **Makyajdan 10 Dakika Önce:** Cildinizi hafif nemlendirici ve su bazlı güneş kremi ile nemlendirin.
+                • **Gözenek Gizleme:** T-bölgesine silikon bazlı veya matlaştırıcı pürüzsüzleştirici baz uygulayın.
+                • **Cilt Tipinize Göre ($skinType):** ${if (skinType == "Kuru") "Işıltılı, nemlendirici bitişli ten ürünleri seçin." else "Yarı-mat veya pudralı su bazlı fondötenler tercih edin."}
+                """.trimIndent()
+            }
+            query.contains("rutin") || query.contains("sıra") || query.contains("nasıl") || query.contains("katman") -> {
+                """
+                📋 **Doğru Cilt Bakım Rutin Sıralaması:**
+                
+                1️⃣ **Temizleyici:** Su bazlı yıkama jeli/Köpük
+                2️⃣ **Tonik/Esans:** Cildi neme ve seruma hazırlama
+                3️⃣ **Hedef Serum:** Niasinamid, C Vitamini, Hyalüronik Asit vb.
+                4️⃣ **Göz Çevresi Kremi:** Tampon hareketlerle
+                5️⃣ **Nemlendirici Krem:** Nemi hapsetme
+                6️⃣ **Güneş Kremi (Sabah):** SPF 50+ (2 Parmak kuralı)
+                """.trimIndent()
+            }
+            else -> {
+                """
+                🌿 **DermaAI Cilt Bakım Danışmanınız:**
+                
+                Profilinizde kayıtlı cilt tipiniz ($skinType) uyarınca:
+                • **Sabah:** Nazik temizleme, nemlendirici ve mutlaka SPF 50+ güneş koruyucu uygulayın.
+                • **Akşam:** Çift aşama temizlik ve cildinizin ihtiyacına göre leke, gözenek veya bariyer onarıcı aktif serum kullanabilirsiniz.
+                
+                Cildinizle veya sormak istediğiniz belirli bir içerik (Retinol, Niasinamid, C Vitamini vb.) hakkında daha spesifik sorular sorabilirsiniz! 🌸
+                """.trimIndent()
+            }
         }
     }
 

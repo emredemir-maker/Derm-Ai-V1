@@ -177,6 +177,11 @@ fun FaceMapDiagnosticCard(
     val detectedConcerns = if (!analysisResult?.concerns.isNullOrEmpty()) analysisResult!!.concerns else listOf("Aşırı Sebum", "Nemsizlik", "Geniş Gözenekler")
     val detectedGoal = analysisResult?.goal?.ifBlank { "Nem & Sebum Dengesi" } ?: "Nem & Sebum Dengesi"
 
+    val initialConcerns = remember(analysisResult, userConcerns) {
+        (detectedConcerns + userConcerns).distinct()
+    }
+    var activeSelectedConcerns by remember(initialConcerns) { mutableStateOf(initialConcerns.toSet()) }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -694,24 +699,87 @@ fun FaceMapDiagnosticCard(
             }
         }
 
-        // Bottom AI Summary & Action Buttons
+        // Bottom AI Summary & Interactive Concern Matching Interface
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Lilac100, RoundedCornerShape(18.dp))
-                .padding(12.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Default.Psychology, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
-                Text("AI Profil Teşhisi:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                Icon(Icons.Default.Tune, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
+                Text("Olası Problemler Eşleşmesi & Onay", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Navy900)
             }
 
             Text(
-                text = "Cilt tipi: $detectedType. Önerilen temel hedef: $detectedGoal.",
-                fontSize = 12.sp,
-                color = Navy700,
-                lineHeight = 16.sp
+                text = "Fotoğraf analizinden tespit edilen durumlar ile önceden seçtiğiniz problemler harmanlandı. Profilinize aktarılacak konuları seçip/kaldırabilirsiniz:",
+                fontSize = 11.sp,
+                color = TextSecondary,
+                lineHeight = 15.sp
+            )
+
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                initialConcerns.forEach { concern ->
+                    val isChecked = activeSelectedConcerns.contains(concern)
+                    val isFromAi = detectedConcerns.contains(concern)
+                    val isFromUser = userConcerns.contains(concern)
+
+                    FilterChip(
+                        selected = isChecked,
+                        onClick = {
+                            activeSelectedConcerns = if (isChecked) {
+                                activeSelectedConcerns - concern
+                            } else {
+                                activeSelectedConcerns + concern
+                            }
+                        },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = concern,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium
+                                )
+                                if (isFromAi && isFromUser) {
+                                    Text("⚡ (Ortak)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Amber600)
+                                } else if (isFromAi) {
+                                    Text("✨ AI", fontSize = 10.sp, color = Purple700)
+                                } else if (isFromUser) {
+                                    Text("👤 Siz", fontSize = 10.sp, color = Navy700)
+                                }
+                            }
+                        },
+                        leadingIcon = if (isChecked) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Purple600,
+                            selectedLabelColor = White,
+                            selectedLeadingIconColor = White,
+                            containerColor = SurfaceCard,
+                            labelColor = Navy900
+                        ),
+                        shape = CircleShape,
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = BorderDefault,
+                            selectedBorderColor = Purple600,
+                            enabled = true,
+                            selected = isChecked
+                        )
+                    )
+                }
+            }
+
+            Text(
+                text = "Cilt Tipi: $detectedType · Temel Hedef: $detectedGoal",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Purple700
             )
 
             // Action Buttons
@@ -741,7 +809,7 @@ fun FaceMapDiagnosticCard(
 
                 Button(
                     onClick = {
-                        onApplyToProfile(detectedType.split(" ").first(), detectedConcerns, detectedGoal)
+                        onApplyToProfile(detectedType.split(" ").first(), activeSelectedConcerns.toList(), detectedGoal)
                     },
                     modifier = Modifier
                         .weight(1.2f)
@@ -753,7 +821,7 @@ fun FaceMapDiagnosticCard(
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Analizi Onayla & Düzenle",
+                        text = "Onayla & Problemlere Aktar",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = White,

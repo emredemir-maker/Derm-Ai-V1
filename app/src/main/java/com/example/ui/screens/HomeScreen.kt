@@ -35,6 +35,8 @@ fun HomeScreen(
     viewModel: SkinCareViewModel,
     onNavigateToMakeupAnalysis: () -> Unit = {},
     onNavigateToFaceMap: () -> Unit = {},
+    onNavigateToGuide: () -> Unit = {},
+    onNavigateToDiary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeProfileState by viewModel.skinProfile.collectAsState()
@@ -87,6 +89,16 @@ fun HomeScreen(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(SurfaceCard, CircleShape)
+                        .border(1.dp, BorderDefault, CircleShape)
+                        .clickable { onNavigateToDiary() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = "Cilt Günlüğü & Takvim", tint = Purple600, modifier = Modifier.size(20.dp))
+                }
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -226,6 +238,66 @@ fun HomeScreen(
                 }
                 Text("AI Makyaj Analizi yap", fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
+            }
+        }
+
+        // Cilt Bakım & Rutin Uygulama Rehberi Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToGuide() },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+            border = BorderStroke(1.dp, BorderDefault)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Purple100, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = Purple700, modifier = Modifier.size(22.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Cilt Bakım & Rutin Uygulama Rehberi", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                    Text("Sabah & akşam adımları, katmanlama kuralları ve yapılmaması gerekenler", fontSize = 11.sp, color = TextSecondary)
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Purple600, modifier = Modifier.size(20.dp))
+            }
+        }
+
+        // Cilt Günlüğü & Takvim Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToDiary() },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+            border = BorderStroke(1.dp, BorderDefault)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Mint100, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Green600, modifier = Modifier.size(22.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Cilt Günlüğü & Takvim", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                    Text("Aylık ısı haritası, gün bazlı cilt kayıtları ve değişim takibi", fontSize = 11.sp, color = TextSecondary)
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Green600, modifier = Modifier.size(18.dp))
             }
         }
 

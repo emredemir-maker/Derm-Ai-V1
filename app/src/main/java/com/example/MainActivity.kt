@@ -54,12 +54,13 @@ class MainActivity : ComponentActivity() {
                 val skinProfile by viewModel.skinProfile.collectAsState()
                 var currentTab by remember { mutableIntStateOf(0) }
                 var showMakeupAnalysis by remember { mutableStateOf(false) }
+                var showDiaryScreen by remember { mutableStateOf(false) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = SurfacePage,
                     bottomBar = {
-                        if (skinProfile != null && !showMakeupAnalysis) {
+                        if (skinProfile != null && !showMakeupAnalysis && !showDiaryScreen) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -108,9 +109,18 @@ class MainActivity : ComponentActivity() {
                         ProfileSetupScreen(viewModel = viewModel, onCompleted = { currentTab = 0 }, modifier = modifier)
                     } else if (showMakeupAnalysis) {
                         MakeupAnalysisScreen(viewModel = viewModel, onNavigateBack = { showMakeupAnalysis = false }, modifier = modifier)
+                    } else if (showDiaryScreen) {
+                        DiaryScreen(viewModel = viewModel, onNavigateBack = { showDiaryScreen = false }, modifier = modifier)
                     } else {
                         when (currentTab) {
-                            0 -> HomeScreen(viewModel = viewModel, onNavigateToMakeupAnalysis = { showMakeupAnalysis = true }, onNavigateToFaceMap = { currentTab = 1 }, modifier = modifier)
+                            0 -> HomeScreen(
+                                viewModel = viewModel,
+                                onNavigateToMakeupAnalysis = { showMakeupAnalysis = true },
+                                onNavigateToFaceMap = { currentTab = 1 },
+                                onNavigateToGuide = { currentTab = 2 },
+                                onNavigateToDiary = { showDiaryScreen = true },
+                                modifier = modifier
+                            )
                             1 -> FaceMapScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)
                             2 -> RecommendationsScreen(viewModel = viewModel, modifier = modifier)
                             3 -> ChatScreen(viewModel = viewModel, modifier = modifier)

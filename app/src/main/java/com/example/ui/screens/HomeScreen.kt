@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.SkinCareViewModel
 import com.example.ui.viewmodel.calculateDynamicSkinScore
 import com.example.ui.theme.*
+import com.example.util.RoutineParser
+import com.example.util.ParsedRoutine
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,22 +39,34 @@ fun HomeScreen(
     onNavigateToFaceMap: () -> Unit = {},
     onNavigateToGuide: () -> Unit = {},
     onNavigateToDiary: () -> Unit = {},
+    onNavigateToInventory: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeProfileState by viewModel.skinProfile.collectAsState()
     val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val analysisError by viewModel.analysisError.collectAsState()
     
     var routineTab by remember { mutableIntStateOf(0) }
-    var routineState by remember { mutableStateOf(listOf(true, true, false, false, false)) }
+    var morningChecked by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var eveningChecked by remember { mutableStateOf<Set<Int>>(emptySet()) }
     
     val profile = activeProfileState ?: return
+
+    val parsedRoutine = remember(profile.lastAnalysisRoutine) {
+        RoutineParser.parse(profile.lastAnalysisRoutine)
+    }
+
+    LaunchedEffect(profile.lastAnalysisRoutine, profile.id) {
+        morningChecked = emptySet()
+        eveningChecked = emptySet()
+    }
 
     val profileConcernsList = profile.skinConcerns.split(",").map { it.trim() }.filter { it.isNotBlank() }
 
     val score = remember(profile, scanAnalysis) {
         calculateDynamicSkinScore(profile, scanAnalysis)
     }
-    val doneCount = routineState.count { it }
 
     val statusTitle = when {
         score < 65 -> "Yoğun Bakım İhtiyacı ⚠️"
@@ -89,6 +103,16 @@ fun HomeScreen(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(SurfaceCard, CircleShape)
+                        .border(1.dp, BorderDefault, CircleShape)
+                        .clickable { onNavigateToInventory() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Inventory2, contentDescription = "Ürün Dolabım", tint = Purple600, modifier = Modifier.size(20.dp))
+                }
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -301,6 +325,36 @@ fun HomeScreen(
             }
         }
 
+        // Ürün Dolabım & Envanter Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToInventory() },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+            border = BorderStroke(1.dp, BorderDefault)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Purple100, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Inventory2, contentDescription = null, tint = Purple600, modifier = Modifier.size(22.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Ürün Dolabım ve Envanter", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                    Text("Kozmetik envanteri, SKT takibi ve haftalık içerik çakışma analizi", fontSize = 11.sp, color = TextSecondary)
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
+            }
+        }
+
         // Interactive Face Map Section
         val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
         val lastPhotoPath by viewModel.lastScannedPhotoPath.collectAsState()
@@ -321,76 +375,216 @@ fun HomeScreen(
         
         // Checklist
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Bugün ne yapmalıyım?", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
-                Row(
-                    modifier = Modifier.background(Lilac100, CircleShape).border(1.dp, BorderDefault, CircleShape).padding(3.dp)
+            // Error Card (if any error occurred)
+            if (analysisError != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Rose100),
+                    border = BorderStroke(1.dp, Rose600.copy(alpha = 0.3f))
                 ) {
-                    TabButton("Sabah", Icons.Default.WbSunny, routineTab == 0) { routineTab = 0 }
-                    TabButton("Akşam", Icons.Default.NightsStay, routineTab == 1) { routineTab = 1 }
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Rose600, modifier = Modifier.size(22.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Analiz Hatası", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Rose600)
+                            Text(analysisError!!, fontSize = 12.sp, color = Navy900)
+                        }
+                        Button(
+                            onClick = { viewModel.triggerFullAIAnalysis() },
+                            enabled = !isAnalyzing,
+                            colors = ButtonDefaults.buttonColors(containerColor = Rose600),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Tekrar Dene", fontSize = 12.sp, color = White)
+                        }
+                    }
                 }
             }
-            
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                LinearProgressIndicator(
-                    progress = { doneCount / 5f },
-                    modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
-                    color = Purple500,
-                    trackColor = Lilac200
-                )
-                Text("$doneCount/5 tamamlandı", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Purple600)
-            }
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ChecklistItem(
-                    title = "Nazik Köpük Temizleyici", desc = "Amino asitli · pH dengeli",
-                    icon = Icons.Default.WaterDrop, iconBg = SurfaceBrandSoft, iconTint = Purple600,
-                    isDone = routineState[0], onToggle = {
-                        val m = routineState.toMutableList(); m[0] = !m[0]; routineState = m
-                    }
-                )
-                ChecklistItem(
-                    title = "Niasinamid & Çinko Serum", desc = "Gözenek ve sebum dengesi için",
-                    icon = Icons.Default.Science, iconBg = Blue100, iconTint = Blue600,
-                    isDone = routineState[1], onToggle = {
-                        val m = routineState.toMutableList(); m[1] = !m[1]; routineState = m
-                    }
-                )
-                ChecklistItem(
-                    title = "Dengeleyici Jel-Krem", desc = "Skualen · Centella · yeşil çay",
-                    icon = Icons.Default.Spa, iconBg = Mint100, iconTint = Mint500,
-                    isDone = routineState[2], onToggle = {
-                        val m = routineState.toMutableList(); m[2] = !m[2]; routineState = m
-                    }
-                )
-                ChecklistItem(
-                    title = "Güneş Kremi SPF 50", desc = "Atlamak skorunu düşürür",
-                    icon = Icons.Default.WbSunny, iconBg = Amber100, iconTint = Amber600,
-                    isDone = routineState[3], onToggle = {
-                        val m = routineState.toMutableList(); m[3] = !m[3]; routineState = m
-                    }
-                )
-                ChecklistItem(
-                    title = "Makyaj: Soft Peach", desc = "Gözenek dostu yarı mat baz",
-                    icon = Icons.Default.Brush, iconBg = Pink100, iconTint = Pink600,
-                    isDone = routineState[4], onToggle = {
-                        val m = routineState.toMutableList(); m[4] = !m[4]; routineState = m
-                    }
-                )
-            }
-            
-            if (doneCount == 5) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(SurfaceBrandSoft, RoundedCornerShape(16.dp)).padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+            if (isAnalyzing && !parsedRoutine.isCategorized) {
+                // Loading card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    border = BorderStroke(1.dp, BorderDefault)
                 ) {
-                    Icon(Icons.Default.Checklist, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
-                    Text("Bugünü tamamladın — seri 7 güne çıktı ✨", fontSize = 12.sp, color = Purple700)
+                    Column(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(color = Purple500, modifier = Modifier.size(32.dp))
+                        Text("Yapay zeka cildinize özel bakım rutinini hazırlıyor...", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Navy900)
+                    }
+                }
+            } else if (!parsedRoutine.isCategorized && parsedRoutine.uncategorizedText == null) {
+                // Empty State
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    border = BorderStroke(1.dp, BorderDefault)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(48.dp).background(Purple100, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Purple600, modifier = Modifier.size(24.dp))
+                        }
+                        Text("Henüz kişiselleştirilmiş bir bakım rutininiz yok", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Navy900, textAlign = TextAlign.Center)
+                        Text("Cilt tipinize ve şikayetlerinize özel Sabah ve Akşam bakım adımlarınızı oluşturmak için AI analizi başlatın.", fontSize = 12.sp, color = TextSecondary, textAlign = TextAlign.Center)
+                        Button(
+                            onClick = { viewModel.triggerFullAIAnalysis() },
+                            enabled = !isAnalyzing,
+                            colors = ButtonDefaults.buttonColors(containerColor = Purple600),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                        ) {
+                            if (isAnalyzing) {
+                                CircularProgressIndicator(color = White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text("Kişisel Rutin Oluştur", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = White)
+                        }
+                    }
+                }
+            } else if (parsedRoutine.isCategorized) {
+                // Categorized Routine State
+                val currentSteps = if (routineTab == 0) parsedRoutine.morningSteps else parsedRoutine.eveningSteps
+                val checkedSet = if (routineTab == 0) morningChecked else eveningChecked
+
+                val doneCount = checkedSet.size
+                val totalSteps = currentSteps.size
+                val progressFraction = if (totalSteps > 0) doneCount.toFloat() / totalSteps.toFloat() else 0f
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Bugün ne yapmalıyım?", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                        if (profile.lastAnalysisDate > 0L) {
+                            val sdf = SimpleDateFormat("d MMMM yyyy", Locale("tr"))
+                            Text("Son AI Analizi: ${sdf.format(Date(profile.lastAnalysisDate))}", fontSize = 11.sp, color = TextMuted)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.background(Lilac100, CircleShape).border(1.dp, BorderDefault, CircleShape).padding(3.dp)
+                    ) {
+                        TabButton("Sabah", Icons.Default.WbSunny, routineTab == 0) { routineTab = 0 }
+                        TabButton("Akşam", Icons.Default.NightsStay, routineTab == 1) { routineTab = 1 }
+                    }
+                }
+
+                if (totalSteps > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LinearProgressIndicator(
+                            progress = { progressFraction },
+                            modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
+                            color = Purple500,
+                            trackColor = Lilac200
+                        )
+                        Text("$doneCount/$totalSteps tamamlandı", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Purple600)
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        currentSteps.forEachIndexed { index, stepText ->
+                            val isDone = checkedSet.contains(index)
+                            val lower = stepText.lowercase()
+                            val (icon, bg, tint) = when {
+                                lower.contains("güneş") || lower.contains("spf") -> Triple(Icons.Default.WbSunny, Amber100, Amber600)
+                                lower.contains("temizle") || lower.contains("köpük") || lower.contains("su") || lower.contains("jel") -> Triple(Icons.Default.WaterDrop, SurfaceBrandSoft, Purple600)
+                                lower.contains("serum") || lower.contains("asit") || lower.contains("aktif") -> Triple(Icons.Default.Science, Blue100, Blue600)
+                                lower.contains("krem") || lower.contains("nem") -> Triple(Icons.Default.Spa, Mint100, Mint500)
+                                lower.contains("makyaj") || lower.contains("baz") -> Triple(Icons.Default.Brush, Pink100, Pink600)
+                                else -> Triple(Icons.Default.AutoAwesome, Lilac100, Purple600)
+                            }
+
+                            ChecklistItem(
+                                title = stepText,
+                                desc = if (routineTab == 0) "Sabah Adımı ${index + 1}" else "Akşam Adımı ${index + 1}",
+                                icon = icon,
+                                iconBg = bg,
+                                iconTint = tint,
+                                isDone = isDone,
+                                onToggle = {
+                                    if (routineTab == 0) {
+                                        morningChecked = if (morningChecked.contains(index)) morningChecked - index else morningChecked + index
+                                    } else {
+                                        eveningChecked = if (eveningChecked.contains(index)) eveningChecked - index else eveningChecked + index
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    if (totalSteps > 0 && doneCount == totalSteps) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().background(SurfaceBrandSoft, RoundedCornerShape(16.dp)).padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Checklist, contentDescription = null, tint = Purple600, modifier = Modifier.size(18.dp))
+                            Text("Tebrikler! ${if (routineTab == 0) "Sabah" else "Akşam"} bakım adımlarını tamamladın ✨", fontSize = 12.sp, color = Purple700)
+                        }
+                    }
+                } else {
+                    Text("Bu vakit için belirlenmiş bir bakım adımı bulunmuyor.", fontSize = 13.sp, color = TextMuted, modifier = Modifier.padding(vertical = 8.dp))
+                }
+            } else if (parsedRoutine.uncategorizedText != null) {
+                // Uncategorized Text Fallback
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    border = BorderStroke(1.dp, BorderDefault)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Kişisel bakım planın", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                        Text(parsedRoutine.uncategorizedText, fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp)
+                    }
+                }
+            }
+
+            // Makeup Advice Section (if available)
+            if (!profile.lastAnalysisMakeup.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    border = BorderStroke(1.dp, BorderDefault)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(38.dp).background(Pink100, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Brush, contentDescription = null, tint = Pink600, modifier = Modifier.size(20.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("AI Makyaj Tavsiyesi", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Navy900)
+                            Text(profile.lastAnalysisMakeup, fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp)
+                        }
+                    }
                 }
             }
         }

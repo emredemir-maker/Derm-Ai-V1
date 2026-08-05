@@ -16,3 +16,14 @@
 local.properties
 .env
 debug.keystore
+.env
+.env.*
+!.env.example
+local.properties
+app/google-services.json
+*.jks
+*.keystore
+.gradle/
+.idea/
+**/build/
+.gradle-wrapper-cache/

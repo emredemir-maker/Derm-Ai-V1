@@ -55,12 +55,13 @@ class MainActivity : ComponentActivity() {
                 var currentTab by remember { mutableIntStateOf(0) }
                 var showMakeupAnalysis by remember { mutableStateOf(false) }
                 var showDiaryScreen by remember { mutableStateOf(false) }
+                var showInventoryScreen by remember { mutableStateOf(false) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = SurfacePage,
                     bottomBar = {
-                        if (skinProfile != null && !showMakeupAnalysis && !showDiaryScreen) {
+                        if (skinProfile != null && !showMakeupAnalysis && !showDiaryScreen && !showInventoryScreen) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -111,6 +112,8 @@ class MainActivity : ComponentActivity() {
                         MakeupAnalysisScreen(viewModel = viewModel, onNavigateBack = { showMakeupAnalysis = false }, modifier = modifier)
                     } else if (showDiaryScreen) {
                         DiaryScreen(viewModel = viewModel, onNavigateBack = { showDiaryScreen = false }, modifier = modifier)
+                    } else if (showInventoryScreen) {
+                        InventoryScreen(viewModel = viewModel, onNavigateBack = { showInventoryScreen = false }, modifier = modifier)
                     } else {
                         when (currentTab) {
                             0 -> HomeScreen(
@@ -119,6 +122,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToFaceMap = { currentTab = 1 },
                                 onNavigateToGuide = { currentTab = 2 },
                                 onNavigateToDiary = { showDiaryScreen = true },
+                                onNavigateToInventory = { showInventoryScreen = true },
                                 modifier = modifier
                             )
                             1 -> FaceMapScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)

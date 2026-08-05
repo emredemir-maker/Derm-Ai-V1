@@ -174,19 +174,37 @@ fun IngredientScanScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Store
+                // Store Search Action
+                val context = androidx.compose.ui.platform.LocalContext.current
                 Row(
-                    modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().background(Brush.linearGradient(listOf(Blue300, Blue100)), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth()
+                        .background(Brush.linearGradient(listOf(Blue300, Blue100)), RoundedCornerShape(20.dp))
+                        .clickable {
+                            val productName = analysisResult?.productName?.ifBlank { "Niasinamid Serum" } ?: "Niasinamid Serum"
+                            val links = com.example.data.repository.MarketSearchRepository.getStoreSearchLinks(productName)
+                            if (links.isNotEmpty()) {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(links.first().searchUrl))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(modifier = Modifier.size(34.dp).background(White.copy(alpha = 0.8f), CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.ShoppingBag, contentDescription = null, tint = Blue600, modifier = Modifier.size(18.dp))
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("₺189 · Gratis'te en ucuz", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
-                        Text("5 mağaza tarandı · kargo 3 gün", fontSize = 12.sp, color = Navy700)
+                        Text("Online Mağazalarda Ara", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                        Text("Güncel stok ve fiyat bilgisini doğrula", fontSize = 12.sp, color = Navy700)
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Blue600, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Blue600, modifier = Modifier.size(18.dp))
                 }
             }
             

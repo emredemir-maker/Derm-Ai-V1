@@ -54,7 +54,8 @@ data class InventoryItem(
     val category: String, // e.g. "Fondöten", "Nemlendirici", "Serum", "Güneş Kremi"
     val openedDate: Long = System.currentTimeMillis(),
     val shelfLifeMonths: Int = 12, // Expiry period after opening in months
-    val compatibilityScore: Int = 100, // Compatibility score with user's skin profile
+    val compatibilityScore: Int = 0, // Compatibility score with user's skin profile
+    val ingredients: String = "", // Ingredients list
     val notes: String? = null
 )
 

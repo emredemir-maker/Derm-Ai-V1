@@ -3,9 +3,7 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.api.Content
 import com.example.data.api.GeminiRepository
-import com.example.data.api.Part
 import com.example.data.api.ProfileAnalysisResult
 import com.example.data.database.AppDatabase
 import com.example.data.database.DiaryEntry
@@ -109,6 +107,9 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
+    private val _analysisError = MutableStateFlow<String?>(null)
+    val analysisError: StateFlow<String?> = _analysisError.asStateFlow()
+
     // Recommendation States
     private val _selectedRecommendSkinType = MutableStateFlow("Normal")
     val selectedRecommendSkinType: StateFlow<String> = _selectedRecommendSkinType.asStateFlow()
@@ -118,6 +119,9 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
 
     private val _isRecommendationLoading = MutableStateFlow(false)
     val isRecommendationLoading: StateFlow<Boolean> = _isRecommendationLoading.asStateFlow()
+
+    private val _recommendationError = MutableStateFlow<String?>(null)
+    val recommendationError: StateFlow<String?> = _recommendationError.asStateFlow()
 
     init {
         // Collect skin profile to set the default skin type recommendations safely
@@ -318,7 +322,13 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
 
     fun triggerFullAIAnalysis(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
-            val profile = dao.getSkinProfileDirect() ?: return@launch
+            _analysisError.value = null
+            val profile = dao.getSkinProfileDirect()
+            if (profile == null) {
+                _analysisError.value = "Cilt profili bulunamadı. Lütfen önce profilinizi oluşturun."
+                onComplete()
+                return@launch
+            }
             _isAnalyzing.value = true
             try {
                 val (routine, makeup) = GeminiRepository.getSkinCareAnalysis(
@@ -328,14 +338,19 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     makeup = profile.makeupPreference
                 )
                 
-                val updatedProfile = profile.copy(
-                    lastAnalysisRoutine = routine,
-                    lastAnalysisMakeup = makeup,
-                    lastAnalysisDate = System.currentTimeMillis()
-                )
-                dao.insertSkinProfile(updatedProfile)
+                if (routine.isBlank() || routine.startsWith("Hata oluştu") || routine.contains("gerçekleştirilemedi")) {
+                    _analysisError.value = "Analiz yanıtı alınamadı veya geçersiz. Lütfen tekrar deneyin."
+                } else {
+                    val updatedProfile = profile.copy(
+                        lastAnalysisRoutine = routine,
+                        lastAnalysisMakeup = makeup,
+                        lastAnalysisDate = System.currentTimeMillis()
+                    )
+                    dao.insertSkinProfile(updatedProfile)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _analysisError.value = "Analiz yapılırken bir hata oluştu: ${e.localizedMessage ?: "Bilinmeyen hata"}"
             } finally {
                 _isAnalyzing.value = false
                 onComplete()
@@ -385,9 +400,9 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     "Cilt profili henüz oluşturulmadı."
                 }
 
-                // Map last 5 messages to Gemini Content history
+                // Map last messages to chat history pairs
                 val history = _chatMessages.value.takeLast(6).dropLast(1).map { msg ->
-                    Content(parts = listOf(Part(text = msg.text)))
+                    Pair(if (msg.isUser) "user" else "model", msg.text)
                 }
 
                 val aiResponse = GeminiRepository.getChatResponse(
@@ -413,6 +428,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
 
     fun selectSkinTypeForRecommendation(skinType: String) {
         _selectedRecommendSkinType.value = skinType
+        _recommendationError.value = null
         viewModelScope.launch {
             try {
                 var recommendation = dao.getRecommendationForSkinType(skinType)
@@ -430,6 +446,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
     fun regenerateRecommendationWithGemini() {
         val skinType = _selectedRecommendSkinType.value
         viewModelScope.launch {
+            _recommendationError.value = null
             _isRecommendationLoading.value = true
             try {
                 val profile = dao.getSkinProfileDirect()
@@ -445,7 +462,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     makeup = makeup,
                     allergies = allergies
                 )
-                if (response != null) {
+                if (response != null && (response.creamSuggestions.isNotEmpty() || response.makeupSuggestions.isNotEmpty())) {
                     val moshi = com.squareup.moshi.Moshi.Builder()
                         .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
                         .build()
@@ -464,9 +481,12 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     )
                     dao.insertRecommendation(rec)
                     _currentRecommendation.value = rec
+                } else {
+                    _recommendationError.value = "Gemini'den kişiselleştirilmiş öneriler alınamadı. Lütfen tekrar deneyin."
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _recommendationError.value = "Öneri oluşturulurken bir hata oluştu: ${e.localizedMessage ?: "Bilinmeyen hata"}"
             } finally {
                 _isRecommendationLoading.value = false
             }
@@ -487,18 +507,10 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
         type: String,
         category: String,
         shelfLifeMonths: Int,
+        ingredients: String = "",
         notes: String? = null
     ) {
         viewModelScope.launch {
-            val profile = dao.getSkinProfileDirect()
-            val skinType = profile?.skinType ?: "Normal"
-            val compatibility = when (skinType) {
-                "Kuru" -> if (category.contains("nem", ignoreCase = true) || category.contains("serum", ignoreCase = true)) 95 else 80
-                "Yağlı" -> if (category.contains("jel", ignoreCase = true) || category.contains("tonik", ignoreCase = true)) 95 else 72
-                "Hassas" -> if (notes?.contains("parfüm", ignoreCase = true) == true) 60 else 90
-                else -> 85
-            }
-            
             val item = com.example.data.database.InventoryItem(
                 name = name,
                 brand = brand,
@@ -506,7 +518,8 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                 category = category,
                 openedDate = System.currentTimeMillis(),
                 shelfLifeMonths = shelfLifeMonths,
-                compatibilityScore = compatibility,
+                compatibilityScore = 0,
+                ingredients = ingredients,
                 notes = notes
             )
             dao.insertInventoryItem(item)
@@ -581,11 +594,21 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
     private val _weeklyInventoryCheck = MutableStateFlow<com.example.data.api.WeeklyInventoryCheckResponse?>(null)
     val weeklyInventoryCheck: StateFlow<com.example.data.api.WeeklyInventoryCheckResponse?> = _weeklyInventoryCheck.asStateFlow()
 
+    private val _weeklyInventoryError = MutableStateFlow<String?>(null)
+    val weeklyInventoryError: StateFlow<String?> = _weeklyInventoryError.asStateFlow()
+
     private val _isWeeklyInventoryLoading = MutableStateFlow(false)
     val isWeeklyInventoryLoading: StateFlow<Boolean> = _isWeeklyInventoryLoading.asStateFlow()
 
     fun runWeeklyInventoryCheck() {
         viewModelScope.launch {
+            _weeklyInventoryError.value = null
+            val currentItems = inventoryItems.value
+            if (currentItems.isEmpty() || currentItems.all { it.ingredients.isBlank() }) {
+                _weeklyInventoryError.value = "Envanterde içerik bilgisi girilmiş ürün bulunamadı. Lütfen en az bir ürüne içerik listesi ekleyin."
+                return@launch
+            }
+
             _isWeeklyInventoryLoading.value = true
             try {
                 val profile = dao.getSkinProfileDirect()
@@ -593,15 +616,20 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                 val concerns = profile?.skinConcerns ?: "Yok/Gözenek"
                 val goal = profile?.skincareGoal ?: "Nemlendirme"
 
-                val currentItems = inventoryItems.value
                 val inventoryJson = currentItems.joinToString("\n") { 
-                    "- ${it.brand} ${it.name} (${it.category}, ${it.type})" 
+                    val ing = if (it.ingredients.isBlank()) "İçerik bilgisi girilmedi" else it.ingredients
+                    "- ${it.brand} ${it.name} (${it.category}, ${it.type}) [İçerikler: $ing]"
                 }
 
                 val result = GeminiRepository.checkWeeklyInventory(inventoryJson, skinType, concerns, goal)
-                _weeklyInventoryCheck.value = result
+                if (result != null) {
+                    _weeklyInventoryCheck.value = result
+                } else {
+                    _weeklyInventoryError.value = "Gemini'den haftalık envanter analizi alınamadı."
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _weeklyInventoryError.value = "Analiz sırasında hata oluştu: ${e.localizedMessage ?: "Bilinmeyen hata"}"
             } finally {
                 _isWeeklyInventoryLoading.value = false
             }
@@ -610,33 +638,10 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
 
     fun clearWeeklyInventoryCheck() {
         _weeklyInventoryCheck.value = null
+        _weeklyInventoryError.value = null
     }
 
-    // Price Comparison States
-    private val _productPriceComparison = MutableStateFlow<com.example.data.api.ProductPriceComparisonResponse?>(null)
-    val productPriceComparison: StateFlow<com.example.data.api.ProductPriceComparisonResponse?> = _productPriceComparison.asStateFlow()
-
-    private val _isComparingPrices = MutableStateFlow(false)
-    val isComparingPrices: StateFlow<Boolean> = _isComparingPrices.asStateFlow()
-
-    fun compareProductPrices(productName: String, category: String) {
-        viewModelScope.launch {
-            _isComparingPrices.value = true
-            _productPriceComparison.value = null
-            try {
-                val result = GeminiRepository.fetchProductPrices(productName, category)
-                _productPriceComparison.value = result
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _isComparingPrices.value = false
-            }
-        }
-    }
-
-    fun clearProductPriceComparison() {
-        _productPriceComparison.value = null
-    }
+    // Price Comparison functionality removed to avoid unverified price claims. Store search links are handled via MarketSearchRepository.
 
     // Onboarding Walkthrough / Guided Tour States
     private val prefs = application.getSharedPreferences("derma_ai_prefs", android.content.Context.MODE_PRIVATE)

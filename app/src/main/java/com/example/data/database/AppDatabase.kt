@@ -4,8 +4,21 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.BuildConfig
 
-@Database(entities = [SkinProfile::class, DiaryEntry::class, SkinTypeRecommendation::class, InventoryItem::class], version = 4, exportSchema = false)
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE inventory_items ADD COLUMN ingredients TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+@Database(
+    entities = [SkinProfile::class, DiaryEntry::class, SkinTypeRecommendation::class, InventoryItem::class],
+    version = 5,
+    exportSchema = true
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun skinDao(): SkinDao
 
@@ -15,13 +28,15 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                val builder = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "skin_care_database"
-                )
-                .fallbackToDestructiveMigration()
-                .build()
+                ).addMigrations(MIGRATION_4_5)
+                if (BuildConfig.DEBUG) {
+                    builder.fallbackToDestructiveMigration()
+                }
+                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }

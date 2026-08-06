@@ -51,6 +51,11 @@ fun ProfileSetupScreen(
     var selectedGoal by remember { mutableStateOf("Nemlendirme") }
     var selectedMakeupPreference by remember { mutableStateOf("") }
     var showCameraForScan by remember { mutableStateOf(false) }
+    val contentScrollState = rememberScrollState()
+
+    LaunchedEffect(currentStep) {
+        contentScrollState.scrollTo(0)
+    }
 
     val skinTypes = listOf(
         "Kuru" to "Nemsiz, gergin ve pullanmaya eğilimli",
@@ -331,7 +336,7 @@ fun ProfileSetupScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(contentScrollState)
                             .padding(horizontal = 20.dp)
                     ) {
                         when (step) {
@@ -468,38 +473,41 @@ fun ProfileSetupScreen(
                                 }
                                 
                                 Spacer(modifier = Modifier.height(10.dp))
-                                Row(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(Color.White)
                                         .border(1.5.dp, Purple400, RoundedCornerShape(16.dp))
-                                        .clickable {
-                                            showCameraForScan = true
-                                        }
                                         .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(Purple600, RoundedCornerShape(20.dp)),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = White, modifier = Modifier.size(20.dp))
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Emin değil misin? AI ile Yüz Haritanı Çıkar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Purple800)
-                                        Text("Yüz fotoğrafı çekerek otomatik analiz et", fontSize = 12.sp, color = TextSecondary)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(Purple600, RoundedCornerShape(20.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = White, modifier = Modifier.size(20.dp))
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Cilt tipinden emin değil misin?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Purple800)
+                                            Text("Fotoğrafla AI yüz analizi yap", fontSize = 12.sp, color = TextSecondary)
+                                        }
                                     }
                                     Button(
                                         onClick = { showCameraForScan = true },
+                                        modifier = Modifier.fillMaxWidth(),
                                         colors = ButtonDefaults.buttonColors(containerColor = Purple600),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
-                                        Text("Fotoğraf Çek", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = White)
+                                        Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Fotoğraf Çek", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = White)
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(130.dp))

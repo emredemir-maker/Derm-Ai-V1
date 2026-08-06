@@ -353,28 +353,67 @@ object GeminiRepository {
         gender: String = ""
     ): GeminiRecommendationResponse? {
         val systemPrompt = """
-            Sen profesyonel bir Dermatolog ve Kozmetologsun. SADECE geçerli bir JSON döndürmelisin:
-            {
-              "skinType": "...",
-              "creamSuggestions": [],
-              "makeupSuggestions": [],
-              "generalTips": "..."
-            }
-        """.trimIndent()
-        val userPrompt = "Cilt: $skinType, Sorunlar: $concerns, Hedef: $goal, Alerjiler: $allergies, Yaş: ${if (age > 0) age else "Belirtilmedi"}, Cinsiyet: ${gender.ifBlank { "Belirtilmedi" }}. Yaş ve cinsiyeti yalnızca güvenli ve ilgili bakım bağlamında kullan; kalıp yargı veya tıbbi tanı üretme."
+            Sen profesyonel bir cilt bakımı danışmanısın. Yalnızca geçerli JSON döndür.
+            Açıklama, markdown veya kod bloğu ekleme.
 
-        return try {
-            val text = aiClient.generateContent(
-                prompt = userPrompt,
-                systemInstruction = systemPrompt,
-                temperature = 0.5f,
-                responseMimeType = "application/json"
-            )
-            val moshi = com.squareup.moshi.Moshi.Builder().build()
-            moshi.adapter(GeminiRecommendationResponse::class.java).fromJson(cleanJson(text))
-        } catch (e: Exception) {
-            null
+            JSON şeması tam olarak şöyledir:
+            {
+              "skinType": "Yağlı",
+              "creamSuggestions": [
+                {
+                  "name": "Ürün tipi veya doğrulanabilir ürün adı",
+                  "category": "Temizleyici",
+                  "activeIngredients": "Niasinamid, Çinko PCA",
+                  "description": "Bu profil için neden uygun olduğu",
+                  "usageTip": "Ne zaman ve nasıl kullanılacağı"
+                }
+              ],
+              "makeupSuggestions": [
+                {
+                  "name": "Ürün tipi veya doğrulanabilir ürün adı",
+                  "category": "Fondöten",
+                  "activeIngredients": "İlgili içerikler",
+                  "description": "Bu profil için neden uygun olduğu",
+                  "usageTip": "Uygulama önerisi"
+                }
+              ],
+              "generalTips": "Kısa ve güvenli genel tavsiye"
+            }
+
+            creamSuggestions içinde 4-6 öneri üret. Kategoriler yalnızca Temizleyici, Serum,
+            Nemlendirici veya Güneş Kremi olsun. Makyaj kullanan kullanıcı için makeupSuggestions
+            içinde 1-3 öneri üret; kullanmıyorsa bu liste boş olabilir. Fiyat, indirim, mağaza,
+            stok, uyum yüzdesi veya doğrulanamayan ticari iddia üretme. Tanı koyma ve reçeteli
+            tedavi önerme. Tüm metinler Türkçe olsun ve her nesnede beş alanın tamamı bulunsun.
+        """.trimIndent()
+        val userPrompt = """
+            Cilt tipi: $skinType
+            Sorunlar: $concerns
+            Hedef: $goal
+            Makyaj tercihi: $makeup
+            Alerjiler: $allergies
+            Yaş: ${if (age > 0) age else "Belirtilmedi"}
+            Cinsiyet: ${gender.ifBlank { "Belirtilmedi" }}
+
+            Yaş ve cinsiyeti yalnızca güvenli ve ilgili bakım bağlamında kullan; kalıp yargı
+            veya tıbbi tanı üretme. Bu profile uygun öneri JSON'unu hazırla.
+        """.trimIndent()
+
+        val text = aiClient.generateContent(
+            prompt = userPrompt,
+            systemInstruction = systemPrompt,
+            temperature = 0.4f,
+            responseMimeType = "application/json"
+        )
+        val moshi = com.squareup.moshi.Moshi.Builder().build()
+        val response = moshi.adapter(GeminiRecommendationResponse::class.java)
+            .fromJson(cleanJson(text))
+            ?: throw IllegalStateException("AI öneri yanıtı JSON biçiminde çözümlenemedi.")
+
+        if (response.creamSuggestions.isEmpty() && response.makeupSuggestions.isEmpty()) {
+            throw IllegalStateException("AI öneri listesi boş döndü.")
         }
+        return response
     }
 
     suspend fun analyzeProductIngredients(

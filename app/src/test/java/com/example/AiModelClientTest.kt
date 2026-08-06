@@ -45,6 +45,56 @@ class AiModelClientTest {
     }
 
     @Test
+    fun testCustomRecommendationsParseCompleteProductCards() = runBlocking {
+        fakeClient.mockResponse = """
+            {
+              "skinType": "Yağlı",
+              "creamSuggestions": [{
+                "name": "Nazik Jel Temizleyici",
+                "category": "Temizleyici",
+                "activeIngredients": "Niasinamid",
+                "description": "Sebumu nazikçe arındırır.",
+                "usageTip": "Sabah ve akşam kullan."
+              }],
+              "makeupSuggestions": [],
+              "generalTips": "Yeni ürünleri yama testiyle dene."
+            }
+        """.trimIndent()
+
+        val result = GeminiRepository.fetchCustomRecommendations(
+            skinType = "Yağlı",
+            concerns = "Akne",
+            goal = "Sivilce Kontrolü",
+            makeup = "Makyaj kullanmıyorum",
+            allergies = "Yok",
+            age = 24,
+            gender = "Kadın"
+        )
+
+        assertEquals("Nazik Jel Temizleyici", result?.creamSuggestions?.single()?.name)
+        assertTrue(fakeClient.requestedPrompts.single().contains("Makyaj tercihi: Makyaj kullanmıyorum"))
+    }
+
+    @Test
+    fun testCustomRecommendationsRejectEmptyLists() = runBlocking {
+        fakeClient.mockResponse = """
+            {
+              "skinType": "Yağlı",
+              "creamSuggestions": [],
+              "makeupSuggestions": [],
+              "generalTips": ""
+            }
+        """.trimIndent()
+
+        try {
+            GeminiRepository.fetchCustomRecommendations("Yağlı", "Akne", "Kontrol", "Yok", "Yok")
+            fail("Boş öneri listesi kabul edilmemeliydi")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("boş") == true)
+        }
+    }
+
+    @Test
     fun testUnconfiguredFirebaseHandling() = runBlocking {
         fakeClient.unconfigured = true
         val response = GeminiRepository.getChatResponse("Merhaba", "Yağlı cilt")

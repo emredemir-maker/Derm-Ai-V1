@@ -542,11 +542,11 @@ class SkinCareViewModel @JvmOverloads constructor(
                     dao.insertRecommendation(rec)
                     _currentRecommendation.value = rec
                 } else {
-                    _recommendationError.value = "Gemini'den kişiselleştirilmiş öneriler alınamadı. Lütfen tekrar deneyin."
+                    _recommendationError.value = "AI öneri listesi boş döndü. Lütfen tekrar deneyin."
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _recommendationError.value = "Öneri oluşturulurken bir hata oluştu: ${e.localizedMessage ?: "Bilinmeyen hata"}"
+                _recommendationError.value = "Öneri oluşturulamadı: ${e.localizedMessage ?: "Bilinmeyen hata"}"
             } finally {
                 _isRecommendationLoading.value = false
             }

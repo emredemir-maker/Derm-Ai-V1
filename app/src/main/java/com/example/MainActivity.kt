@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,13 +31,20 @@ import com.example.ui.screens.*
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.SkinCareViewModel
 import com.example.data.notification.NotificationHelper
+import com.example.data.notification.RoutineNotificationContentBuilder
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SkinCareViewModel by viewModels()
+    private var notificationDestination by mutableStateOf<String?>(null)
+
+    companion object {
+        const val EXTRA_NOTIFICATION_DESTINATION = "notification_destination"
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleNotificationIntent(intent)
         enableEdgeToEdge()
 
         // Initialize Notification Channels
@@ -57,11 +65,21 @@ class MainActivity : ComponentActivity() {
                 var showDiaryScreen by remember { mutableStateOf(false) }
                 var showInventoryScreen by remember { mutableStateOf(false) }
 
+                LaunchedEffect(notificationDestination, skinProfile) {
+                    if (skinProfile != null && notificationDestination == RoutineNotificationContentBuilder.DESTINATION_WEEKLY) {
+                        currentTab = 1
+                        notificationDestination = null
+                    }
+                }
+
+                val showingRoutineReminder = notificationDestination == RoutineNotificationContentBuilder.DESTINATION_MORNING ||
+                    notificationDestination == RoutineNotificationContentBuilder.DESTINATION_EVENING
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = SurfacePage,
                     bottomBar = {
-                        if (skinProfile != null && !showMakeupAnalysis && !showDiaryScreen && !showInventoryScreen) {
+                        if (skinProfile != null && !showMakeupAnalysis && !showDiaryScreen && !showInventoryScreen && !showingRoutineReminder) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -108,6 +126,13 @@ class MainActivity : ComponentActivity() {
                     val modifier = Modifier.padding(innerPadding)
                     if (skinProfile == null) {
                         ProfileSetupScreen(viewModel = viewModel, onCompleted = { currentTab = 0 }, modifier = modifier)
+                    } else if (showingRoutineReminder) {
+                        RoutineReminderScreen(
+                            viewModel = viewModel,
+                            period = if (notificationDestination == RoutineNotificationContentBuilder.DESTINATION_EVENING) "evening" else "morning",
+                            onNavigateBack = { notificationDestination = null },
+                            modifier = modifier
+                        )
                     } else if (showMakeupAnalysis) {
                         MakeupAnalysisScreen(viewModel = viewModel, onNavigateBack = { showMakeupAnalysis = false }, modifier = modifier)
                     } else if (showDiaryScreen) {
@@ -134,6 +159,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        notificationDestination = intent?.getStringExtra(EXTRA_NOTIFICATION_DESTINATION)
     }
 }
 

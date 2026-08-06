@@ -16,6 +16,10 @@ class AlarmReceiver : BroadcastReceiver() {
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            NotificationHelper.updateReminders(context)
+            return
+        }
         val type = intent.getStringExtra("reminder_type") ?: return
 
         // Reschedule next occurrence of the alarm
@@ -27,40 +31,10 @@ class AlarmReceiver : BroadcastReceiver() {
                 // Fetch the skin profile from Database to personalize notification content
                 val db = AppDatabase.getDatabase(context)
                 val profile = db.skinDao().getSkinProfileDirect()
-                val skinType = profile?.skinType ?: "Normal"
-
-                val (title, message) = when (type) {
-                    "morning" -> {
-                        val msg = when (skinType) {
-                            "Kuru" -> "Günaydın! Cildini nazikçe temizle, ardından yoğun nemlendiricini ve güneş kremini sürmeyi unutma! 💧☀️"
-                            "Yağlı" -> "Günaydın! Sebum dengesini korumak için hafif temizleyici ve yağsız nemlendiricini uygula! 🧪☀️"
-                            "Karma" -> "Günaydın! T-bölgesi parlamasını kontrol altına almak ve yanakları nemlendirmek için rutinine başla! ⚖️☀️"
-                            "Hassas" -> "Günaydın! Cilt bariyerini koruyan yatıştırıcı kremini ve mineral güneş koruyucunu uygula! 🌿☀️"
-                            else -> "Günaydın! Güne taze bir ciltle başlamak için sabah bakım rutininizi uygulayın! 🧴☀️"
-                        }
-                        Pair("Sabah Cilt Bakımı Vakti", msg)
-                    }
-                    "evening" -> {
-                        val msg = when (skinType) {
-                            "Kuru" -> "İyi akşamlar! Yoğun nemlendirme ve cilt bariyeri onarımı zamanı. Onarıcı kremini sür! 🌙✨"
-                            "Yağlı" -> "İyi akşamlar! Gözenek arındırma zamanı. Salisilik asit (BHA) içeren jelini ve hafif kremini uygula! 🧪🌙"
-                            "Karma" -> "İyi akşamlar! Cildini kirden arındır ve dengeli bir gece nemlendiricisiyle neme doyur! ⚖️🌙"
-                            "Hassas" -> "İyi akşamlar! Günün yorgunluğunu yatıştırıcı kreminle cildinden arındır. Bariyerini besle! 🌿🌙"
-                            else -> "İyi akşamlar! Cildiniz uyurken yenilenir. Gece bakım rutininizi tamamlamayı unutmayın! 🧴🌙"
-                        }
-                        Pair("Akşam Cilt Bakımı Vakti", msg)
-                    }
-                    "weekly" -> {
-                        Pair(
-                            "Haftalık Cilt Analizi Zamanı 📸",
-                            "Cildindeki gelişimi ve değişimi takip etmek için yeni bir fotoğraf çekip analizini güncelleyebilirsin!"
-                        )
-                    }
-                    else -> Pair("Cilt Bakım Zamanı", "Kendine bir iyilik yap ve cildine hak ettiği bakımı sağla! 🧴✨")
-                }
+                val content = RoutineNotificationContentBuilder.build(profile, type)
 
                 // Fire notification
-                sendNotification(context, title, message, type)
+                sendNotification(context, content, type)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -69,9 +43,10 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun sendNotification(context: Context, title: String, message: String, type: String) {
+    private fun sendNotification(context: Context, content: RoutineNotificationContent, type: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_NOTIFICATION_DESTINATION, content.destination)
         }
         val requestCode = when (type) {
             "morning" -> 201
@@ -88,9 +63,9 @@ class AlarmReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID_REMINDERS)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentTitle(content.title)
+            .setContentText(content.message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(content.message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(pendingIntent)

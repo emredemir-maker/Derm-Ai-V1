@@ -21,7 +21,7 @@ class FirebaseAiModelClient : AiModelClient {
         try {
             val app = FirebaseApp.getInstance()
             val model = Firebase.ai(app).generativeModel(
-                modelName = "gemini-1.5-flash",
+                modelName = "gemini-3.5-flash",
                 generationConfig = generationConfig {
                     temperature?.let { this.temperature = it }
                     responseMimeType?.let { this.responseMimeType = it }

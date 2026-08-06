@@ -7,6 +7,7 @@ import com.squareup.moshi.JsonClass
 @Entity(tableName = "skin_profile")
 data class SkinProfile(
     @PrimaryKey val id: Int = 1,
+    val userName: String = "",
     val skinType: String,
     val skinConcerns: String, // Comma-separated list (e.g. "Akne, Lekeler")
     val skincareGoal: String,

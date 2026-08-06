@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,12 +19,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.R
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.SkinCareViewModel
 import com.example.ui.viewmodel.mapToStandardConcerns
@@ -37,9 +41,11 @@ fun ProfileSetupScreen(
     modifier: Modifier = Modifier
 ) {
     var currentStep by remember { mutableIntStateOf(0) }
+    var userName by remember { mutableStateOf("") }
     var selectedSkinType by remember { mutableStateOf("Karma") }
     var selectedConcerns by remember { mutableStateOf(setOf<String>()) }
     var selectedGoal by remember { mutableStateOf("Nemlendirme") }
+    var selectedMakeupPreference by remember { mutableStateOf("") }
     var showCameraForScan by remember { mutableStateOf(false) }
 
     val skinTypes = listOf(
@@ -60,8 +66,18 @@ fun ProfileSetupScreen(
         "Sivilce Kontrolü", "Cilt Bariyeri Güçlendirme"
     )
 
+    val makeupPreferences = listOf(
+        "Doğal & Hafif (Yok Gibi Makyaj)",
+        "Yoğun Kapatıcı & Mat Ten",
+        "Göz & Dudak Odaklı",
+        "Makyaj kullanmıyorum",
+        "Belirtmek istemiyorum"
+    )
+
     val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
     val isScanLoading by viewModel.isScanLoading.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val analysisError by viewModel.analysisError.collectAsState()
     var showScanResultDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(scanAnalysis) {
@@ -137,7 +153,7 @@ fun ProfileSetupScreen(
                             selectedGoal = mappedG
 
                             showScanResultDialog = false
-                            currentStep = 1 // Take user to Step 1 (Olası Problemler) to review and edit!
+                            currentStep = 2 // Take user to Step 2 (Olası Problemler) to review and edit!
                         },
                         onRetakePhoto = {
                             showScanResultDialog = false
@@ -159,24 +175,26 @@ fun ProfileSetupScreen(
             ) {
                 Button(
                     onClick = {
-                        if (currentStep < 2) {
+                        if (currentStep < 4) {
                             currentStep++
                         } else {
-                            viewModel.saveSkinProfile(
+                            viewModel.saveProfileAndGenerateAIRoutine(
+                                userName = userName,
                                 skinType = selectedSkinType,
                                 skinConcerns = selectedConcerns.toList(),
                                 skincareGoal = selectedGoal,
-                                makeupPreference = "Doğal & Hafif (Yok Gibi Makyaj)"
+                                makeupPreference = selectedMakeupPreference,
+                                onSuccess = { onCompleted() }
                             )
-                            onCompleted()
                         }
                     },
+                    enabled = !isAnalyzing,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Purple600),
                     shape = RoundedCornerShape(28.dp)
                 ) {
                     Text(
-                        text = if (currentStep == 2) "Rutinimi Oluştur" else "Devam Et",
+                        text = if (currentStep == 4) "Rutinimi Oluştur" else "Devam Et",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -184,6 +202,65 @@ fun ProfileSetupScreen(
             }
         }
     ) { innerPadding ->
+        if (isAnalyzing) {
+            Dialog(onDismissRequest = {}) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceCard,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(color = Purple600)
+                        Text(
+                            "AI Cilt Bakım Rutininiz Hazırlanıyor...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Navy900
+                        )
+                        Text(
+                            "Cilt tipinize ve hedeflerinize özel analiz tamamlanıyor.",
+                            fontSize = 13.sp,
+                            color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        if (analysisError != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearAnalysisError() },
+                title = { Text("Rutin Oluşturulamadı", fontWeight = FontWeight.Bold, color = Navy900) },
+                text = { Text(analysisError!!, color = TextSecondary) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.saveProfileAndGenerateAIRoutine(
+                                userName = userName,
+                                skinType = selectedSkinType,
+                                skinConcerns = selectedConcerns.toList(),
+                                skincareGoal = selectedGoal,
+                                makeupPreference = selectedMakeupPreference,
+                                onSuccess = { onCompleted() }
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple600)
+                    ) {
+                        Text("Tekrar Dene", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.clearAnalysisError() }) {
+                        Text("Kapat", color = TextMuted)
+                    }
+                }
+            )
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -220,18 +297,18 @@ fun ProfileSetupScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Cilt profilin", fontSize = 12.sp, color = TextSecondary)
-                            Text("Adım ${currentStep + 1}/3", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Purple600)
+                            Text("Adım ${currentStep + 1}/5", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Purple600)
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         LinearProgressIndicator(
-                            progress = { (currentStep + 1) / 3f },
+                            progress = { (currentStep + 1) / 5f },
                             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
                             color = Purple600,
                             trackColor = Lilac200,
                         )
                     }
                     
-                    TextButton(onClick = { currentStep = 2 }) {
+                    TextButton(onClick = { currentStep = 4 }) {
                         Text("Geç", color = TextMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -246,6 +323,49 @@ fun ProfileSetupScreen(
                     ) {
                         when (step) {
                             0 -> {
+                                Image(
+                                    painter = painterResource(id = R.drawable.derm_ai_logo),
+                                    contentDescription = "Derm-Ai logosu",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(72.dp)
+                                        .padding(bottom = 16.dp)
+                                )
+                                Text(
+                                    "Sana nasıl hitap\nedelim?",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Navy900,
+                                    lineHeight = 32.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Kişiselleştirilmiş tavsiyeler ve bakım takibi için isminizi girebilirsiniz.",
+                                    fontSize = 14.sp,
+                                    color = TextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                OutlinedTextField(
+                                    value = userName,
+                                    onValueChange = { userName = it },
+                                    label = { Text("Adınız / Takma Adınız") },
+                                    placeholder = { Text("Örn: Zeynep") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Purple600,
+                                        unfocusedBorderColor = BorderDefault,
+                                        focusedContainerColor = SurfaceCard,
+                                        unfocusedContainerColor = SurfaceCard
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(130.dp))
+                            }
+                            1 -> {
                                 Text(
                                     "Cildini nasıl\ntanımlarsın?",
                                     fontSize = 26.sp,
@@ -333,7 +453,7 @@ fun ProfileSetupScreen(
                                 }
                                 Spacer(modifier = Modifier.height(130.dp))
                             }
-                            1 -> {
+                            2 -> {
                                 Surface(
                                     color = Mint100,
                                     shape = RoundedCornerShape(16.dp),
@@ -449,7 +569,7 @@ fun ProfileSetupScreen(
                                 }
                                 Spacer(modifier = Modifier.height(80.dp))
                             }
-                            2 -> {
+                            3 -> {
                                 Text(
                                     "Bu ay neye\nodaklanalım?",
                                     fontSize = 26.sp,
@@ -486,6 +606,53 @@ fun ProfileSetupScreen(
                                             goal,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 17.sp,
+                                            color = Navy900,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (isSelected) {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Purple600)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
+                            4 -> {
+                                Text(
+                                    "Makyaj tercihin\nnedir?",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Navy900,
+                                    lineHeight = 32.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Sana özel makyaj tavsiyeleri ve baz önerileri için tarzını seç.",
+                                    fontSize = 14.sp,
+                                    color = TextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                makeupPreferences.forEach { pref ->
+                                    val isSelected = selectedMakeupPreference == pref
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(SurfaceCard)
+                                            .border(
+                                                if (isSelected) 2.dp else 1.5.dp,
+                                                if (isSelected) Purple500 else BorderDefault,
+                                                RoundedCornerShape(16.dp)
+                                            )
+                                            .clickable { selectedMakeupPreference = pref }
+                                            .padding(18.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            pref,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 16.sp,
                                             color = Navy900,
                                             modifier = Modifier.weight(1f)
                                         )

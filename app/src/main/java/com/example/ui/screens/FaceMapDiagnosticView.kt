@@ -173,9 +173,9 @@ fun FaceMapDiagnosticCard(
     var selectedZone by remember { mutableStateOf<FaceZoneData?>(zones.firstOrNull()) }
     var showAllRegionsList by remember { mutableStateOf(false) }
 
-    val detectedType = analysisResult?.skinType?.ifBlank { "Karma Cilt" } ?: "Karma Cilt (T-Bölgesi Yağlı)"
-    val detectedConcerns = if (!analysisResult?.concerns.isNullOrEmpty()) analysisResult!!.concerns else listOf("Aşırı Sebum", "Nemsizlik", "Geniş Gözenekler")
-    val detectedGoal = analysisResult?.goal?.ifBlank { "Nem & Sebum Dengesi" } ?: "Nem & Sebum Dengesi"
+    val detectedType = if (!analysisResult?.skinType.isNullOrBlank()) analysisResult!!.skinType else "Analiz Yapılmadı"
+    val detectedConcerns = if (!analysisResult?.concerns.isNullOrEmpty()) analysisResult!!.concerns else userConcerns
+    val detectedGoal = if (!analysisResult?.goal.isNullOrBlank()) analysisResult!!.goal else ""
 
     val initialConcerns = remember(analysisResult, userConcerns) {
         (detectedConcerns + userConcerns).distinct()

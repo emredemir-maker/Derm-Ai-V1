@@ -27,3 +27,6 @@ app/google-services.json
 .idea/
 **/build/
 .gradle-wrapper-cache/
+.build-outputs/
+debug.keystore.base64
+*.keystore.base64

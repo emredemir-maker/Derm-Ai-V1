@@ -188,7 +188,7 @@ fun FaceMapScreen(
                             skinType = skinType,
                             skinConcerns = concerns,
                             skincareGoal = goal,
-                            makeupPreference = "Doğal & Hafif (Yok Gibi Makyaj)"
+                            makeupPreference = activeProfile?.makeupPreference ?: ""
                         )
                     },
                     onRetakePhoto = {

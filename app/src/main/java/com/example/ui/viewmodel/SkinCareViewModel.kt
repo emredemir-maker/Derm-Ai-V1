@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.api.GeminiRepository
 import com.example.data.api.ProfileAnalysisResult
 import com.example.data.database.AppDatabase
+import com.example.data.database.SkinDao
 import com.example.data.database.DiaryEntry
 import com.example.data.database.SkinProfile
 import com.example.data.database.SkinTypeRecommendation
@@ -61,31 +62,14 @@ fun calculateDynamicSkinScore(profile: SkinProfile?, analysis: ProfileAnalysisRe
     if (analysis != null && analysis.skinHealthScore > 0) {
         return analysis.skinHealthScore
     }
-    val concernsStr = profile?.skinConcerns ?: ""
-    val concernsList = if (concernsStr.isNotBlank()) concernsStr.split(",").map { it.trim() }.filter { it.isNotBlank() } else emptyList()
-    if (concernsList.isEmpty()) return 88
-
-    var score = 92
-    concernsList.forEach { c ->
-        val lower = c.lowercase()
-        when {
-            lower.contains("akne") || lower.contains("sivilce") -> score -= 12
-            lower.contains("leke") || lower.contains("pigment") -> score -= 10
-            lower.contains("siyah") || lower.contains("komedon") -> score -= 8
-            lower.contains("kırış") || lower.contains("yaş") -> score -= 8
-            lower.contains("kızar") || lower.contains("hassas") -> score -= 8
-            lower.contains("gözenek") || lower.contains("sebum") -> score -= 7
-            lower.contains("kuru") || lower.contains("pullan") -> score -= 7
-            else -> score -= 6
-        }
-    }
-    return score.coerceIn(38, 92)
+    return 0
 }
 
-class SkinCareViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val db = AppDatabase.getDatabase(application)
-    private val dao = db.skinDao()
+class SkinCareViewModel @JvmOverloads constructor(
+    application: Application,
+    private val dao: SkinDao = AppDatabase.getDatabase(application).skinDao(),
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
+) : AndroidViewModel(application) {
 
     // Reactive profile flow
     val skinProfile: StateFlow<SkinProfile?> = dao.getSkinProfileFlow()
@@ -164,27 +148,10 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     GeminiRepository.analyzeSkinForProfile(photoPath)
                 } else null
 
-                val finalResult = result ?: com.example.data.api.ProfileAnalysisResult(
-                    skinType = "Karma",
-                    concerns = listOf("T-Bölgesi Sebum", "Yanaklarda Kuruluk", "Geniş Gözenekler"),
-                    goal = "Nem & Sebum Dengesi",
-                    explanation = "AI analizine göre T-bölgenizde yağlanma, yanaklarınızda ise nem kaybı tespit edilmiştir.",
-                    eyeAreaAnalysis = "Göz çevresinde ince kuruluk çizgileri gözlemlendi.",
-                    makeupEvaluation = "Hafif su bazlı kapatıcı ve matlaştırıcı baz tavsiye edilir.",
-                    confidenceScore = 92,
-                    faceMapRegions = listOf(
-                        com.example.data.api.FaceRegionIssue("Alın Bölgesi", "Aşırı Sebum / Yağlanma", "Niasinamid B3", 0.50f, 0.22f),
-                        com.example.data.api.FaceRegionIssue("T-Bölgesi & Burun", "Siyah Nokta & Tıkanıklık", "Salisilik Asit (BHA)", 0.50f, 0.45f),
-                        com.example.data.api.FaceRegionIssue("Sol Yanak", "Sağlıklı Nem Dengesi", "Seramid Krem", 0.30f, 0.52f),
-                        com.example.data.api.FaceRegionIssue("Sağ Yanak", "Hafif Kızarıklık & Hassasiyet", "Centella Asiatica", 0.70f, 0.52f),
-                        com.example.data.api.FaceRegionIssue("Göz Altı", "Morluk & Nemsizlik", "Kafein Serum", 0.50f, 0.35f),
-                        com.example.data.api.FaceRegionIssue("Çene", "Hormonal Akne Meyli", "Çinko PCA", 0.50f, 0.76f)
-                    )
-                )
-
-                _scanProfileAnalysis.value = finalResult
+                _scanProfileAnalysis.value = result
             } catch (e: Exception) {
                 e.printStackTrace()
+                _scanProfileAnalysis.value = null
             } finally {
                 _isScanLoading.value = false
             }
@@ -202,12 +169,16 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
         val concerns = mapToStandardConcerns(result.concerns)
         val goal = mapToStandardGoal(result.goal)
 
-        saveSkinProfile(
-            skinType = type,
-            skinConcerns = concerns,
-            skincareGoal = goal,
-            makeupPreference = "Doğal & Hafif (Yok Gibi Makyaj)"
-        )
+        viewModelScope.launch {
+            val currentProfile = dao.getSkinProfileDirect()
+            saveSkinProfile(
+                userName = currentProfile?.userName ?: "",
+                skinType = type,
+                skinConcerns = concerns,
+                skincareGoal = goal,
+                makeupPreference = currentProfile?.makeupPreference ?: ""
+            )
+        }
     }
 
     
@@ -300,13 +271,16 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
         skinConcerns: List<String>,
         skincareGoal: String,
         makeupPreference: String,
-        allergies: String = ""
+        allergies: String = "",
+        userName: String = ""
     ) {
         viewModelScope.launch {
             val concernsString = skinConcerns.joinToString(", ")
             val currentProfile = dao.getSkinProfileDirect()
+            val finalUserName = if (userName.isNotBlank()) userName else (currentProfile?.userName ?: "")
             val updatedProfile = SkinProfile(
                 id = 1,
+                userName = finalUserName,
                 skinType = skinType,
                 skinConcerns = concernsString,
                 skincareGoal = skincareGoal,
@@ -317,6 +291,73 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                 lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L
             )
             dao.insertSkinProfile(updatedProfile)
+        }
+    }
+
+    fun clearAnalysisError() {
+        _analysisError.value = null
+    }
+
+    fun saveProfileAndGenerateAIRoutine(
+        userName: String,
+        skinType: String,
+        skinConcerns: List<String>,
+        skincareGoal: String,
+        makeupPreference: String,
+        allergies: String = "",
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch(ioDispatcher) {
+            _isAnalyzing.value = true
+            _analysisError.value = null
+            try {
+                val concernsString = skinConcerns.joinToString(", ")
+                val currentProfile = dao.getSkinProfileDirect()
+                val finalUserName = if (userName.isNotBlank()) userName else (currentProfile?.userName ?: "")
+                val profile = SkinProfile(
+                    id = 1,
+                    userName = finalUserName,
+                    skinType = skinType,
+                    skinConcerns = concernsString,
+                    skincareGoal = skincareGoal,
+                    makeupPreference = makeupPreference,
+                    allergies = allergies,
+                    lastAnalysisRoutine = currentProfile?.lastAnalysisRoutine,
+                    lastAnalysisMakeup = currentProfile?.lastAnalysisMakeup,
+                    lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L
+                )
+                // 1. Save user profile data to Room
+                dao.insertSkinProfile(profile)
+
+                // 2. Trigger Firebase AI routine call
+                val (routine, makeup) = GeminiRepository.getSkinCareAnalysis(
+                    skinType = profile.skinType,
+                    concerns = profile.skinConcerns,
+                    goal = profile.skincareGoal,
+                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
+                )
+
+                if (routine.isBlank() || routine.startsWith("Hata oluştu") || routine.contains("gerçekleştirilemedi")) {
+                    _analysisError.value = "Yapay zeka yanıtı alınamadı. Lütfen tekrar deneyin."
+                } else {
+                    // 3. Save real routine to Room on success
+                    val updatedProfile = profile.copy(
+                        lastAnalysisRoutine = routine,
+                        lastAnalysisMakeup = makeup,
+                        lastAnalysisDate = System.currentTimeMillis()
+                    )
+                    dao.insertSkinProfile(updatedProfile)
+                    // 4. Navigate only after success
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onSuccess()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _analysisError.value = "Analiz sırasında bir hata oluştu: ${e.localizedMessage ?: "Bağlantı hatası"}"
+            } finally {
+                _isAnalyzing.value = false
+            }
         }
     }
 
@@ -335,7 +376,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                     skinType = profile.skinType,
                     concerns = profile.skinConcerns,
                     goal = profile.skincareGoal,
-                    makeup = profile.makeupPreference
+                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
                 )
                 
                 if (routine.isBlank() || routine.startsWith("Hata oluştu") || routine.contains("gerçekleştirilemedi")) {
@@ -347,13 +388,13 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                         lastAnalysisDate = System.currentTimeMillis()
                     )
                     dao.insertSkinProfile(updatedProfile)
+                    onComplete()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _analysisError.value = "Analiz yapılırken bir hata oluştu: ${e.localizedMessage ?: "Bilinmeyen hata"}"
             } finally {
                 _isAnalyzing.value = false
-                onComplete()
             }
         }
     }
@@ -395,7 +436,8 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
             try {
                 val profile = dao.getSkinProfileDirect()
                 val profileContext = if (profile != null) {
-                    "Cilt Tipi: ${profile.skinType}, Şikayetler: ${profile.skinConcerns}, Hedef: ${profile.skincareGoal}, Makyaj Tercihi: ${profile.makeupPreference}"
+                    val makeupStr = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
+                    "Cilt Tipi: ${profile.skinType}, Şikayetler: ${profile.skinConcerns}, Hedef: ${profile.skincareGoal}, Makyaj Tercihi: $makeupStr"
                 } else {
                     "Cilt profili henüz oluşturulmadı."
                 }
@@ -431,14 +473,16 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
         _recommendationError.value = null
         viewModelScope.launch {
             try {
-                var recommendation = dao.getRecommendationForSkinType(skinType)
-                if (recommendation == null) {
-                    recommendation = DefaultRecommendations.getDefaults(skinType)
-                    dao.insertRecommendation(recommendation)
+                val recommendation = dao.getRecommendationForSkinType(skinType)
+                if (recommendation != null) {
+                    _currentRecommendation.value = recommendation
+                } else {
+                    _currentRecommendation.value = null
+                    regenerateRecommendationWithGemini()
                 }
-                _currentRecommendation.value = recommendation
             } catch (e: Exception) {
                 e.printStackTrace()
+                _currentRecommendation.value = null
             }
         }
     }
@@ -452,7 +496,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                 val profile = dao.getSkinProfileDirect()
                 val concerns = if (profile != null && profile.skinType == skinType) profile.skinConcerns else "Yok/Sivilce/Gözenek"
                 val goal = if (profile != null && profile.skinType == skinType) profile.skincareGoal else "Nemlendirme"
-                val makeup = if (profile != null && profile.skinType == skinType) profile.makeupPreference else "Doğal"
+                val makeup = if (profile != null && profile.skinType == skinType && profile.makeupPreference.isNotBlank()) profile.makeupPreference else "Kullanıcı makyaj tercihi belirtmedi"
                 val allergies = if (profile != null && profile.skinType == skinType) profile.allergies else "Yok"
                 
                 val response = GeminiRepository.fetchCustomRecommendations(
@@ -547,7 +591,7 @@ class SkinCareViewModel(application: Application) : AndroidViewModel(application
                 val skinType = profile?.skinType ?: "Normal"
                 val concerns = profile?.skinConcerns ?: "Yok/Gözenek"
                 val goal = profile?.skincareGoal ?: "Nemlendirme"
-                val makeup = profile?.makeupPreference ?: "Doğal"
+                val makeup = if (profile != null && profile.makeupPreference.isNotBlank()) profile.makeupPreference else "Kullanıcı makyaj tercihi belirtmedi"
                 
                 val result = GeminiRepository.fetchMarketRecommendations(skinType, concerns, goal, makeup)
                 _marketRecommendations.value = result

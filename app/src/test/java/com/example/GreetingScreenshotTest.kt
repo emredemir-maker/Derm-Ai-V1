@@ -23,13 +23,29 @@ class GreetingScreenshotTest {
     @Test
     fun testCalculateDynamicSkinScore() {
         val profile = SkinProfile(
+            userName = "TestUser",
             skinType = "Karma",
             skinConcerns = "Akne & Sivilce, Lekeler & Pigmentasyon, Geniş Gözenekler",
             skincareGoal = "Sivilce Kontrolü",
             makeupPreference = "Doğal"
         )
-        val score = calculateDynamicSkinScore(profile, null)
-        // Beklenen skoru görmek için debug etmemiz lazım, instructions 63 dedi, "Beklenen skor mevcut algoritmaya göre 63 ise testi 63 olarak yaz. Farklıysa algoritmayı bu görevde değiştirme"
-        assertEquals(63, score)
+        // Without photo scan analysis, score returns 0
+        val scoreNullAnalysis = calculateDynamicSkinScore(profile, null)
+        assertEquals(0, scoreNullAnalysis)
+
+        // With photo scan analysis, returns skinHealthScore from analysis
+        val mockAnalysis = ProfileAnalysisResult(
+            skinType = "Karma",
+            concerns = listOf("Akne"),
+            goal = "Sivilce Kontrolü",
+            explanation = "Test",
+            eyeAreaAnalysis = "",
+            makeupEvaluation = "",
+            confidenceScore = 90,
+            skinHealthScore = 78,
+            faceMapRegions = emptyList()
+        )
+        val scoreWithAnalysis = calculateDynamicSkinScore(profile, mockAnalysis)
+        assertEquals(78, scoreWithAnalysis)
     }
 }

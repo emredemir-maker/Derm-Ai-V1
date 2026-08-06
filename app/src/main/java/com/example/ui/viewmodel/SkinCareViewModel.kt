@@ -272,7 +272,9 @@ class SkinCareViewModel @JvmOverloads constructor(
         skincareGoal: String,
         makeupPreference: String,
         allergies: String = "",
-        userName: String = ""
+        userName: String = "",
+        age: Int = 0,
+        gender: String = ""
     ) {
         viewModelScope.launch {
             val concernsString = skinConcerns.joinToString(", ")
@@ -281,6 +283,8 @@ class SkinCareViewModel @JvmOverloads constructor(
             val updatedProfile = SkinProfile(
                 id = 1,
                 userName = finalUserName,
+                age = age.takeIf { it > 0 } ?: (currentProfile?.age ?: 0),
+                gender = gender.ifBlank { currentProfile?.gender ?: "" },
                 skinType = skinType,
                 skinConcerns = concernsString,
                 skincareGoal = skincareGoal,
@@ -300,6 +304,8 @@ class SkinCareViewModel @JvmOverloads constructor(
 
     fun saveProfileAndGenerateAIRoutine(
         userName: String,
+        age: Int = 0,
+        gender: String = "",
         skinType: String,
         skinConcerns: List<String>,
         skincareGoal: String,
@@ -317,6 +323,8 @@ class SkinCareViewModel @JvmOverloads constructor(
                 val profile = SkinProfile(
                     id = 1,
                     userName = finalUserName,
+                    age = age.takeIf { it > 0 } ?: (currentProfile?.age ?: 0),
+                    gender = gender.ifBlank { currentProfile?.gender ?: "" },
                     skinType = skinType,
                     skinConcerns = concernsString,
                     skincareGoal = skincareGoal,
@@ -334,7 +342,9 @@ class SkinCareViewModel @JvmOverloads constructor(
                     skinType = profile.skinType,
                     concerns = profile.skinConcerns,
                     goal = profile.skincareGoal,
-                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
+                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference,
+                    age = profile.age,
+                    gender = profile.gender
                 )
 
                 if (routine.isBlank() || routine.startsWith("Hata oluştu") || routine.contains("gerçekleştirilemedi")) {
@@ -376,7 +386,9 @@ class SkinCareViewModel @JvmOverloads constructor(
                     skinType = profile.skinType,
                     concerns = profile.skinConcerns,
                     goal = profile.skincareGoal,
-                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
+                    makeup = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference,
+                    age = profile.age,
+                    gender = profile.gender
                 )
                 
                 if (routine.isBlank() || routine.startsWith("Hata oluştu") || routine.contains("gerçekleştirilemedi")) {
@@ -437,7 +449,9 @@ class SkinCareViewModel @JvmOverloads constructor(
                 val profile = dao.getSkinProfileDirect()
                 val profileContext = if (profile != null) {
                     val makeupStr = if (profile.makeupPreference.isBlank()) "Kullanıcı makyaj tercihi belirtmedi" else profile.makeupPreference
-                    "Cilt Tipi: ${profile.skinType}, Şikayetler: ${profile.skinConcerns}, Hedef: ${profile.skincareGoal}, Makyaj Tercihi: $makeupStr"
+                    val ageContext = if (profile.age > 0) "${profile.age} yaş" else "yaş belirtilmedi"
+                    val genderContext = profile.gender.ifBlank { "cinsiyet belirtilmedi" }
+                    "Yaş: $ageContext, Cinsiyet: $genderContext, Cilt Tipi: ${profile.skinType}, Şikayetler: ${profile.skinConcerns}, Hedef: ${profile.skincareGoal}, Makyaj Tercihi: $makeupStr"
                 } else {
                     "Cilt profili henüz oluşturulmadı."
                 }
@@ -504,7 +518,9 @@ class SkinCareViewModel @JvmOverloads constructor(
                     concerns = concerns,
                     goal = goal,
                     makeup = makeup,
-                    allergies = allergies
+                    allergies = allergies,
+                    age = profile?.age ?: 0,
+                    gender = profile?.gender.orEmpty()
                 )
                 if (response != null && (response.creamSuggestions.isNotEmpty() || response.makeupSuggestions.isNotEmpty())) {
                     val moshi = com.squareup.moshi.Moshi.Builder()
@@ -593,7 +609,14 @@ class SkinCareViewModel @JvmOverloads constructor(
                 val goal = profile?.skincareGoal ?: "Nemlendirme"
                 val makeup = if (profile != null && profile.makeupPreference.isNotBlank()) profile.makeupPreference else "Kullanıcı makyaj tercihi belirtmedi"
                 
-                val result = GeminiRepository.fetchMarketRecommendations(skinType, concerns, goal, makeup)
+                val result = GeminiRepository.fetchMarketRecommendations(
+                    skinType = skinType,
+                    concerns = concerns,
+                    goal = goal,
+                    makeup = makeup,
+                    age = profile?.age ?: 0,
+                    gender = profile?.gender.orEmpty()
+                )
                 _marketRecommendations.value = result
             } catch (e: Exception) {
                 e.printStackTrace()

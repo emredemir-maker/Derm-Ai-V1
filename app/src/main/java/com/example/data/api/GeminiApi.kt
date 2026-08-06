@@ -150,11 +150,14 @@ object GeminiRepository {
         skinType: String,
         concerns: String,
         goal: String,
-        makeup: String
+        makeup: String,
+        age: Int = 0,
+        gender: String = ""
     ): Pair<String, String> {
         val systemPrompt = """
             Sen profesyonel bir Dermatolog, Cilt Bakım Uzmanı (Estetisyen) ve Makyaj Artistisin.
-            Kullanıcıya cilt tipine, cilt sorunlarına, bakım hedeflerine ve makyaj tercihlerine göre kişiselleştirilmiş, bilimsel ve pratik öneriler sunmalısın.
+            Kullanıcıya cilt tipine, cilt sorunlarına, bakım hedeflerine, yaşına ve paylaşmayı seçtiği cinsiyet bilgisine göre kişiselleştirilmiş, bilimsel ve pratik öneriler sunmalısın.
+            Yaş ve cinsiyet bilgisini yalnızca içerik güvenliği ve bakım ihtiyacını bağlama oturtmak için kullan; kalıp yargı üretme, tanı koyma veya yalnızca cinsiyete dayanarak ürün önerme.
             
             Yanıtını her zaman TÜRKÇE vermeli ve iki ayrı ana bölüme ayırmalısın:
             1. BÖLÜM: CİLT BAKIM RUTİNİ VE TAVSİYELERİ (Sabah ve Akşam rutinleri, önerilen aktif bileşenler örn. Salisilik Asit, C Vitamini, Retinol, vb.)
@@ -169,6 +172,8 @@ object GeminiRepository {
             - Cilt Sorunları/Şikayetleri: $concerns
             - Cilt Bakım Hedefi: $goal
             - Makyaj Tercihi: $makeup
+            - Yaş: ${if (age > 0) age else "Belirtilmedi"}
+            - Cinsiyet: ${gender.ifBlank { "Belirtilmedi" }}
             
             Lütfen bana uygun ürün tiplerini (krem, temizleyici, güneş kremi vs.) içeren detaylı günlük rutinleri ve cilt tipime zarar vermeyecek makyaj tüyolarını hazırlar mısın?
         """.trimIndent()
@@ -343,7 +348,9 @@ object GeminiRepository {
         concerns: String,
         goal: String,
         makeup: String,
-        allergies: String
+        allergies: String,
+        age: Int = 0,
+        gender: String = ""
     ): GeminiRecommendationResponse? {
         val systemPrompt = """
             Sen profesyonel bir Dermatolog ve Kozmetologsun. SADECE geçerli bir JSON döndürmelisin:
@@ -354,7 +361,7 @@ object GeminiRepository {
               "generalTips": "..."
             }
         """.trimIndent()
-        val userPrompt = "Cilt: $skinType, Sorunlar: $concerns, Hedef: $goal, Alerjiler: $allergies"
+        val userPrompt = "Cilt: $skinType, Sorunlar: $concerns, Hedef: $goal, Alerjiler: $allergies, Yaş: ${if (age > 0) age else "Belirtilmedi"}, Cinsiyet: ${gender.ifBlank { "Belirtilmedi" }}. Yaş ve cinsiyeti yalnızca güvenli ve ilgili bakım bağlamında kullan; kalıp yargı veya tıbbi tanı üretme."
 
         return try {
             val text = aiClient.generateContent(
@@ -415,13 +422,15 @@ object GeminiRepository {
         skinType: String,
         concerns: String,
         goal: String,
-        makeup: String
+        makeup: String,
+        age: Int = 0,
+        gender: String = ""
     ): MarketProductListResponse? {
         val systemPrompt = """
             Sen uzman bir Kozmetik Formülatörsün. SADECE geçerli bir JSON döndürmelisin:
             { "products": [] }
         """.trimIndent()
-        val userPrompt = "Cilt: $skinType, Sorunlar: $concerns, Hedef: $goal"
+        val userPrompt = "Cilt: $skinType, Sorunlar: $concerns, Hedef: $goal, Yaş: ${if (age > 0) age else "Belirtilmedi"}, Cinsiyet: ${gender.ifBlank { "Belirtilmedi" }}"
 
         return try {
             val text = aiClient.generateContent(

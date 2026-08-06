@@ -8,6 +8,8 @@ import com.squareup.moshi.JsonClass
 data class SkinProfile(
     @PrimaryKey val id: Int = 1,
     val userName: String = "",
+    val age: Int = 0,
+    val gender: String = "",
     val skinType: String,
     val skinConcerns: String, // Comma-separated list (e.g. "Akne, Lekeler")
     val skincareGoal: String,
@@ -59,4 +61,3 @@ data class InventoryItem(
     val ingredients: String = "", // Ingredients list
     val notes: String? = null
 )
-

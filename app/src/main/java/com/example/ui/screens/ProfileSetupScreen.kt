@@ -21,6 +21,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,6 +44,8 @@ fun ProfileSetupScreen(
 ) {
     var currentStep by remember { mutableIntStateOf(0) }
     var userName by remember { mutableStateOf("") }
+    var ageText by remember { mutableStateOf("") }
+    var selectedGender by remember { mutableStateOf("") }
     var selectedSkinType by remember { mutableStateOf("Karma") }
     var selectedConcerns by remember { mutableStateOf(setOf<String>()) }
     var selectedGoal by remember { mutableStateOf("Nemlendirme") }
@@ -73,6 +77,11 @@ fun ProfileSetupScreen(
         "Makyaj kullanmıyorum",
         "Belirtmek istemiyorum"
     )
+
+    val genderOptions = listOf("Kadın", "Erkek", "Diğer", "Belirtmek istemiyorum")
+    val isIdentityStepValid = userName.trim().isNotEmpty() &&
+        ageText.toIntOrNull()?.let { it in 13..100 } == true &&
+        selectedGender.isNotBlank()
 
     val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
     val isScanLoading by viewModel.isScanLoading.collectAsState()
@@ -180,6 +189,8 @@ fun ProfileSetupScreen(
                         } else {
                             viewModel.saveProfileAndGenerateAIRoutine(
                                 userName = userName,
+                                age = ageText.toIntOrNull() ?: 0,
+                                gender = selectedGender,
                                 skinType = selectedSkinType,
                                 skinConcerns = selectedConcerns.toList(),
                                 skincareGoal = selectedGoal,
@@ -188,7 +199,7 @@ fun ProfileSetupScreen(
                             )
                         }
                     },
-                    enabled = !isAnalyzing,
+                    enabled = !isAnalyzing && (currentStep != 0 || isIdentityStepValid),
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Purple600),
                     shape = RoundedCornerShape(28.dp)
@@ -242,6 +253,8 @@ fun ProfileSetupScreen(
                         onClick = {
                             viewModel.saveProfileAndGenerateAIRoutine(
                                 userName = userName,
+                                age = ageText.toIntOrNull() ?: 0,
+                                gender = selectedGender,
                                 skinType = selectedSkinType,
                                 skinConcerns = selectedConcerns.toList(),
                                 skincareGoal = selectedGoal,
@@ -363,7 +376,45 @@ fun ProfileSetupScreen(
                                     )
                                 )
 
-                                Spacer(modifier = Modifier.height(130.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
+                                OutlinedTextField(
+                                    value = ageText,
+                                    onValueChange = { value -> ageText = value.filter(Char::isDigit).take(3) },
+                                    label = { Text("Yaşınız") },
+                                    placeholder = { Text("Örn: 28") },
+                                    supportingText = {
+                                        if (ageText.isNotEmpty() && ageText.toIntOrNull()?.let { it !in 13..100 } == true) {
+                                            Text("Lütfen 13 ile 100 arasında bir yaş girin.")
+                                        }
+                                    },
+                                    isError = ageText.isNotEmpty() && ageText.toIntOrNull()?.let { it !in 13..100 } == true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(18.dp))
+                                Text("Cinsiyet", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                @OptIn(ExperimentalLayoutApi::class)
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    genderOptions.forEach { option ->
+                                        FilterChip(
+                                            selected = selectedGender == option,
+                                            onClick = { selectedGender = option },
+                                            label = { Text(option) },
+                                            leadingIcon = if (selectedGender == option) {
+                                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                            } else null
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(80.dp))
                             }
                             1 -> {
                                 Text(

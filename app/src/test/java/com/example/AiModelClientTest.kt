@@ -27,6 +27,24 @@ class AiModelClientTest {
     }
 
     @Test
+    fun testAgeAndGenderAreIncludedInRecommendationContext() = runBlocking {
+        fakeClient.mockResponse = "1. BÖLÜM: Rutin\n2. BÖLÜM: Tavsiye"
+
+        GeminiRepository.getSkinCareAnalysis(
+            skinType = "Yağlı",
+            concerns = "Akne",
+            goal = "Sivilce Kontrolü",
+            makeup = "Belirtilmedi",
+            age = 24,
+            gender = "Kadın"
+        )
+
+        val prompt = fakeClient.requestedPrompts.single()
+        assertTrue(prompt.contains("Yaş: 24"))
+        assertTrue(prompt.contains("Cinsiyet: Kadın"))
+    }
+
+    @Test
     fun testUnconfiguredFirebaseHandling() = runBlocking {
         fakeClient.unconfigured = true
         val response = GeminiRepository.getChatResponse("Merhaba", "Yağlı cilt")

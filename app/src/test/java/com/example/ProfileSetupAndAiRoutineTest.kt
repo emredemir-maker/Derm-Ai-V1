@@ -62,6 +62,8 @@ class ProfileSetupAndAiRoutineTest {
 
         viewModel.saveProfileAndGenerateAIRoutine(
             userName = "Ayşe",
+            age = 29,
+            gender = "Kadın",
             skinType = "Karma",
             skinConcerns = listOf("Akne & Sivilce", "Geniş Gözenekler"),
             skincareGoal = "Sivilce Kontrolü",
@@ -80,6 +82,8 @@ class ProfileSetupAndAiRoutineTest {
 
         assertNotNull("Saved profile should not be null", savedProfile)
         assertEquals("Ayşe", savedProfile?.userName)
+        assertEquals(29, savedProfile?.age)
+        assertEquals("Kadın", savedProfile?.gender)
         assertEquals("Karma", savedProfile?.skinType)
         assertTrue(savedProfile?.lastAnalysisRoutine?.contains("Nazik Yüz Yıkama Jeli") == true)
         assertTrue(successCalled)
@@ -95,6 +99,8 @@ class ProfileSetupAndAiRoutineTest {
 
         viewModel.saveProfileAndGenerateAIRoutine(
             userName = "Mehmet",
+            age = 34,
+            gender = "Erkek",
             skinType = "Kuru",
             skinConcerns = listOf("Kuruluk & Pullanma"),
             skincareGoal = "Yoğun Nemlendirme",
@@ -113,6 +119,8 @@ class ProfileSetupAndAiRoutineTest {
 
         assertNotNull("Saved profile should not be null", savedProfile)
         assertEquals("Mehmet", savedProfile?.userName)
+        assertEquals(34, savedProfile?.age)
+        assertEquals("Erkek", savedProfile?.gender)
         assertFalse(successCalled) // Did not navigate to home screen
         assertNotNull(viewModel.analysisError.value)
         assertTrue(viewModel.analysisError.value?.contains("Yapay zeka yanıtı alınamadı") == true || viewModel.analysisError.value?.contains("hata") == true)

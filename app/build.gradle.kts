@@ -1,3 +1,5 @@
+import com.dermai.gradle.GenerateBrandAssetsTask
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -8,6 +10,12 @@ plugins {
 
 ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+val generatedBrandResources = layout.buildDirectory.dir("generated/res/brandAssets")
+val generateBrandAssets by tasks.registering(GenerateBrandAssetsTask::class) {
+  encodedAssets.set(layout.projectDirectory.dir("brand-assets"))
+  outputDirectory.set(generatedBrandResources)
 }
 
 android {
@@ -73,6 +81,11 @@ android {
       }
     }
   }
+  sourceSets.getByName("main").res.srcDir(generatedBrandResources.get().asFile)
+}
+
+tasks.named("preBuild").configure {
+  dependsOn(generateBrandAssets)
 }
 
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.SkinCareViewModel
+import com.example.ui.viewmodel.hasCompletedPhotoAnalysis
 import com.example.ui.viewmodel.calculateDynamicSkinScore
 import com.example.ui.theme.*
 import com.example.util.RoutineParser
@@ -70,7 +71,7 @@ fun HomeScreen(
         calculateDynamicSkinScore(profile, scanAnalysis)
     }
 
-    val hasAnalysis = score > 0
+    val hasAnalysis = hasCompletedPhotoAnalysis(scanAnalysis)
 
     val analysisDescription = scanAnalysis?.explanation
         ?.takeIf { it.isNotBlank() }
@@ -239,17 +240,19 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
                         Box(modifier = Modifier.size(112.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(
-                                progress = { score / 100f },
-                                modifier = Modifier.fillMaxSize(),
-                                color = Purple500,
-                                trackColor = BorderDefault,
-                                strokeWidth = 10.dp,
-                                strokeCap = StrokeCap.Round
-                            )
+                            if (score > 0) {
+                                CircularProgressIndicator(
+                                    progress = { score / 100f },
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = Purple500,
+                                    trackColor = BorderDefault,
+                                    strokeWidth = 10.dp,
+                                    strokeCap = StrokeCap.Round
+                                )
+                            }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(score.toString(), fontSize = 36.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                Text("/100", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextMuted)
+                                Text(if (score > 0) score.toString() else "--", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text(if (score > 0) "/100" else "Puan yok", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextMuted)
                             }
                         }
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {

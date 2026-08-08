@@ -65,6 +65,8 @@ fun calculateDynamicSkinScore(profile: SkinProfile?, analysis: ProfileAnalysisRe
     return 0
 }
 
+fun hasCompletedPhotoAnalysis(analysis: ProfileAnalysisResult?): Boolean = analysis != null
+
 class SkinCareViewModel @JvmOverloads constructor(
     application: Application,
     private val dao: SkinDao = AppDatabase.getDatabase(application).skinDao(),
@@ -136,6 +138,9 @@ class SkinCareViewModel @JvmOverloads constructor(
     private val _scanProfileAnalysis = MutableStateFlow<com.example.data.api.ProfileAnalysisResult?>(null)
     val scanProfileAnalysis: StateFlow<com.example.data.api.ProfileAnalysisResult?> = _scanProfileAnalysis.asStateFlow()
 
+    private val _scanAnalysisError = MutableStateFlow<String?>(null)
+    val scanAnalysisError: StateFlow<String?> = _scanAnalysisError.asStateFlow()
+
     private val _isScanLoading = MutableStateFlow(false)
     val isScanLoading: StateFlow<Boolean> = _isScanLoading.asStateFlow()
 
@@ -143,15 +148,20 @@ class SkinCareViewModel @JvmOverloads constructor(
         _lastScannedPhotoPath.value = photoPath
         viewModelScope.launch {
             _isScanLoading.value = true
+            _scanAnalysisError.value = null
             try {
                 val result = if (!photoPath.isNullOrBlank()) {
                     GeminiRepository.analyzeSkinForProfile(photoPath)
                 } else null
 
                 _scanProfileAnalysis.value = result
+                if (result == null) {
+                    _scanAnalysisError.value = "Fotoğraf analizinden geçerli bir sonuç alınamadı. Lütfen yeniden deneyin."
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _scanProfileAnalysis.value = null
+                _scanAnalysisError.value = "Fotoğraf analizi tamamlanamadı: ${e.localizedMessage ?: "Bağlantınızı kontrol edip yeniden deneyin."}"
             } finally {
                 _isScanLoading.value = false
             }
@@ -205,6 +215,7 @@ class SkinCareViewModel @JvmOverloads constructor(
 
     fun clearScanAnalysis() {
         _scanProfileAnalysis.value = null
+        _scanAnalysisError.value = null
     }
 
     // Ingredient analysis states

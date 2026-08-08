@@ -231,17 +231,19 @@ fun FaceMapDiagnosticCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Surface(
-                    color = Mint100,
-                    shape = CircleShape
-                ) {
-                    Text(
-                        text = "%94 AI Güven",
-                        color = Green600,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                if ((analysisResult?.confidenceScore ?: 0) > 0) {
+                    Surface(
+                        color = Mint100,
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = "%${analysisResult!!.confidenceScore.coerceIn(0, 100)} AI güven tahmini",
+                            color = Green600,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
 
                 Button(

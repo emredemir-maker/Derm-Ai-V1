@@ -2,6 +2,7 @@ package com.example
 
 import com.example.ui.viewmodel.mapToStandardConcerns
 import com.example.ui.viewmodel.calculateDynamicSkinScore
+import com.example.ui.viewmodel.hasCompletedPhotoAnalysis
 import com.example.data.database.SkinProfile
 import com.example.data.api.ProfileAnalysisResult
 import org.junit.Assert.assertEquals
@@ -47,5 +48,11 @@ class GreetingScreenshotTest {
         )
         val scoreWithAnalysis = calculateDynamicSkinScore(profile, mockAnalysis)
         assertEquals(78, scoreWithAnalysis)
+    }
+
+    @Test
+    fun testCompletedPhotoAnalysisDoesNotDependOnScore() {
+        assertTrue(hasCompletedPhotoAnalysis(ProfileAnalysisResult(skinHealthScore = 0)))
+        assertEquals(false, hasCompletedPhotoAnalysis(null))
     }
 }

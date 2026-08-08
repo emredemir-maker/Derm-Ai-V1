@@ -37,6 +37,7 @@ fun FaceMapScreen(
 ) {
     val activeProfile by viewModel.skinProfile.collectAsState()
     val scanAnalysis by viewModel.scanProfileAnalysis.collectAsState()
+    val scanAnalysisError by viewModel.scanAnalysisError.collectAsState()
     val lastPhotoPath by viewModel.lastScannedPhotoPath.collectAsState()
     val isScanLoading by viewModel.isScanLoading.collectAsState()
     var showCameraView by remember { mutableStateOf(false) }
@@ -178,8 +179,7 @@ fun FaceMapScreen(
                         Text("Yapay zeka yüz bölgelerini haritalandırıyor...", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Purple700)
                     }
                 }
-            } else {
-                // Interactive Diagnostic Card
+            } else if (scanAnalysis != null) {
                 FaceMapDiagnosticCard(
                     analysisResult = scanAnalysis,
                     photoPath = lastPhotoPath,
@@ -196,6 +196,35 @@ fun FaceMapScreen(
                         showCameraView = true
                     }
                 )
+            } else if (!lastPhotoPath.isNullOrBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Text("Yüz analizi tamamlanamadı", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            scanAnalysisError ?: "Geçerli bir analiz sonucu alınamadı.",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                        Button(
+                            onClick = { showCameraView = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Purple600)
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Yeniden Fotoğraf Çek")
+                        }
+                    }
+                }
             }
 
             // Quick Ask AI Button for Face Map

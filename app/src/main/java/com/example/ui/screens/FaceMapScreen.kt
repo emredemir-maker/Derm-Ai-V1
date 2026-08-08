@@ -47,7 +47,8 @@ fun FaceMapScreen(
                 showCameraView = false
                 viewModel.analyzeScanForProfile(file.absolutePath)
             },
-            onDismiss = { showCameraView = false }
+            onDismiss = { showCameraView = false },
+            modifier = modifier
         )
     } else {
         Column(

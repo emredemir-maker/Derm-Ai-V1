@@ -323,8 +323,16 @@ fun CameraCaptureView(
                         modifier = Modifier
                             .size(70.dp)
                             .border(3.dp, Color.Black, CircleShape)
-                            .background(Color.White, CircleShape)
-                    )
+                            .background(Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = "Fotoğraf Çek",
+                            tint = Color.Black,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
                 }
 
                 // Lens toggler (front/back camera swap)

@@ -39,7 +39,8 @@ fun IngredientScanScreen(
                 showCameraForScan = false
                 viewModel.analyzeProductIngredients(file.absolutePath, null)
             },
-            onDismiss = { showCameraForScan = false }
+            onDismiss = { showCameraForScan = false },
+            modifier = modifier
         )
         return
     }

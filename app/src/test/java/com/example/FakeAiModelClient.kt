@@ -5,6 +5,7 @@ import com.example.data.api.AiModelClient
 
 class FakeAiModelClient(
     var mockResponse: String = "Test AI Response",
+    var mockResponses: MutableList<String> = mutableListOf(),
     var shouldThrow: Boolean = false,
     var exceptionToThrow: Exception = Exception("Network error"),
     var unconfigured: Boolean = false
@@ -38,9 +39,10 @@ class FakeAiModelClient(
         if (shouldThrow) {
             throw exceptionToThrow
         }
-        if (mockResponse.isEmpty()) {
+        val response = if (mockResponses.isNotEmpty()) mockResponses.removeAt(0) else mockResponse
+        if (response.isEmpty()) {
             throw Exception("AI yanıtı boş döndü.")
         }
-        return mockResponse
+        return response
     }
 }

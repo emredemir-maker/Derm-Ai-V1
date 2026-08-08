@@ -399,21 +399,45 @@ object GeminiRepository {
             veya tıbbi tanı üretme. Bu profile uygun öneri JSON'unu hazırla.
         """.trimIndent()
 
-        val text = aiClient.generateContent(
-            prompt = userPrompt,
-            systemInstruction = systemPrompt,
-            temperature = 0.4f,
-            responseMimeType = "application/json"
-        )
         val moshi = com.squareup.moshi.Moshi.Builder().build()
-        val response = moshi.adapter(GeminiRecommendationResponse::class.java)
-            .fromJson(cleanJson(text))
-            ?: throw IllegalStateException("AI öneri yanıtı JSON biçiminde çözümlenemedi.")
+        val adapter = moshi.adapter(GeminiRecommendationResponse::class.java)
+        var lastParseError: Exception? = null
 
-        if (response.creamSuggestions.isEmpty() && response.makeupSuggestions.isEmpty()) {
-            throw IllegalStateException("AI öneri listesi boş döndü.")
+        repeat(2) { attempt ->
+            val retryInstruction = if (attempt == 0) "" else """
+
+                Önceki yanıt eksik veya geçersizdi. Bu kez yalnızca tek bir tamamlanmış JSON nesnesi
+                döndür; tüm köşeli ve süslü parantezleri kapat. Açıklama veya kod bloğu ekleme.
+            """.trimIndent()
+            val text = aiClient.generateContent(
+                prompt = userPrompt + retryInstruction,
+                systemInstruction = systemPrompt,
+                temperature = if (attempt == 0) 0.4f else 0.2f,
+                responseMimeType = "application/json"
+            )
+
+            try {
+                val cleaned = cleanJson(text)
+                if (cleaned.isBlank() || !cleaned.startsWith("{") || !cleaned.endsWith("}")) {
+                    throw IllegalStateException("AI öneri yanıtı eksik JSON içeriyor.")
+                }
+                val response = adapter.fromJson(cleaned)
+                    ?: throw IllegalStateException("AI öneri yanıtı JSON biçiminde çözümlenemedi.")
+                if (response.creamSuggestions.isEmpty() && response.makeupSuggestions.isEmpty()) {
+                    throw IllegalStateException("AI öneri listesi boş döndü.")
+                }
+                return response
+            } catch (e: Exception) {
+                lastParseError = e
+            }
         }
-        return response
+
+        val finalMessage = if (lastParseError?.message?.contains("boş") == true) {
+            "AI öneri listesi boş döndü. Lütfen tekrar deneyin."
+        } else {
+            "AI öneri yanıtı iki denemede de tamamlanamadı. Lütfen tekrar deneyin."
+        }
+        throw IllegalStateException(finalMessage, lastParseError)
     }
 
     suspend fun analyzeProductIngredients(

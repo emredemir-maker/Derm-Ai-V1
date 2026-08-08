@@ -95,6 +95,35 @@ class AiModelClientTest {
     }
 
     @Test
+    fun testCustomRecommendationsRetriesTruncatedJson() = runBlocking {
+        fakeClient.mockResponses = mutableListOf(
+            """{"skinType":"Yağlı","creamSuggestions":[""",
+            """
+                {
+                  "skinType": "Yağlı",
+                  "creamSuggestions": [{
+                    "name": "Nazik Jel Temizleyici",
+                    "category": "Temizleyici",
+                    "activeIngredients": "Niasinamid",
+                    "description": "Sebumu nazikçe arındırır.",
+                    "usageTip": "Sabah ve akşam kullan."
+                  }],
+                  "makeupSuggestions": [],
+                  "generalTips": "Yama testi yap."
+                }
+            """.trimIndent()
+        )
+
+        val result = GeminiRepository.fetchCustomRecommendations(
+            "Yağlı", "Akne", "Sivilce Kontrolü", "Makyaj kullanmıyorum", "Yok"
+        )
+
+        assertEquals("Nazik Jel Temizleyici", result?.creamSuggestions?.single()?.name)
+        assertEquals(2, fakeClient.requestedPrompts.size)
+        assertTrue(fakeClient.requestedPrompts[1].contains("Önceki yanıt eksik"))
+    }
+
+    @Test
     fun testUnconfiguredFirebaseHandling() = runBlocking {
         fakeClient.unconfigured = true
         val response = GeminiRepository.getChatResponse("Merhaba", "Yağlı cilt")

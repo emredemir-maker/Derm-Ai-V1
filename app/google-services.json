@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "934249193488",
+    "project_id": "derm-ai-e5149",
+    "storage_bucket": "derm-ai-e5149.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:934249193488:android:f47582b7299f0b7084ea95",
+        "android_client_info": {
+          "package_name": "com.aistudio.ciltanalizvebakim.shskdj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxi54MAs6kVK3kOih4_X1gDE7pVvJYNsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

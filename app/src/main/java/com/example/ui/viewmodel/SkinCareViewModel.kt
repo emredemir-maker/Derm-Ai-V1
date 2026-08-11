@@ -285,7 +285,8 @@ class SkinCareViewModel @JvmOverloads constructor(
         allergies: String = "",
         userName: String = "",
         age: Int = 0,
-        gender: String = ""
+        gender: String = "",
+        onSaved: () -> Unit = {}
     ) {
         viewModelScope.launch {
             val concernsString = skinConcerns.joinToString(", ")
@@ -306,6 +307,7 @@ class SkinCareViewModel @JvmOverloads constructor(
                 lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L
             )
             dao.insertSkinProfile(updatedProfile)
+            onSaved()
         }
     }
 

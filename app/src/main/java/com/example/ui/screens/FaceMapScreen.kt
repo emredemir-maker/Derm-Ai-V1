@@ -33,6 +33,7 @@ import java.io.File
 fun FaceMapScreen(
     viewModel: SkinCareViewModel,
     onNavigateToChat: (String) -> Unit = {},
+    onAnalysisConfirmed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeProfile by viewModel.skinProfile.collectAsState()
@@ -187,10 +188,15 @@ fun FaceMapScreen(
                     userConcerns = activeProfile?.skinConcerns?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList(),
                     onApplyToProfile = { skinType, concerns, goal ->
                         viewModel.saveSkinProfile(
+                            userName = activeProfile?.userName ?: "",
+                            age = activeProfile?.age ?: 0,
+                            gender = activeProfile?.gender ?: "",
                             skinType = skinType,
                             skinConcerns = concerns,
                             skincareGoal = goal,
-                            makeupPreference = activeProfile?.makeupPreference ?: ""
+                            makeupPreference = activeProfile?.makeupPreference ?: "",
+                            allergies = activeProfile?.allergies ?: "",
+                            onSaved = onAnalysisConfirmed
                         )
                     },
                     onRetakePhoto = {

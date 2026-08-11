@@ -150,7 +150,12 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToInventory = { showInventoryScreen = true },
                                 modifier = modifier
                             )
-                            1 -> FaceMapScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)
+                            1 -> FaceMapScreen(
+                                viewModel = viewModel,
+                                onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 },
+                                onAnalysisConfirmed = { currentTab = 0 },
+                                modifier = modifier
+                            )
                             2 -> RecommendationsScreen(viewModel = viewModel, modifier = modifier)
                             3 -> ChatScreen(viewModel = viewModel, modifier = modifier)
                             4 -> IngredientScanScreen(viewModel = viewModel, onNavigateToChat = { q -> viewModel.sendChatMessage(q); currentTab = 3 }, modifier = modifier)

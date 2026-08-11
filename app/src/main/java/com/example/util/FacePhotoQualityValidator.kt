@@ -17,8 +17,11 @@ fun evaluateFaceGeometry(
     imageWidth: Int,
     imageHeight: Int,
     faceCount: Int,
+    faceLeft: Int,
+    faceTop: Int,
     faceWidth: Int,
     faceHeight: Int,
+    headEulerX: Float,
     headEulerY: Float,
     headEulerZ: Float
 ): FacePhotoQualityResult {
@@ -31,7 +34,13 @@ fun evaluateFaceGeometry(
     if (widthRatio < 0.38f || heightRatio < 0.32f) {
         return FacePhotoQualityResult(false, "Yüzünüz çok uzakta. Gözlüklerinizi çıkarıp kameraya yaklaşın.")
     }
-    if (abs(headEulerY) > 15f || abs(headEulerZ) > 12f) {
+
+    val centerXRatio = (faceLeft + faceWidth / 2f) / imageWidth
+    val centerYRatio = (faceTop + faceHeight / 2f) / imageHeight
+    if (centerXRatio !in 0.35f..0.65f || centerYRatio !in 0.25f..0.60f) {
+        return FacePhotoQualityResult(false, "Yüzünüzü oval çerçevenin tam ortasına alın.")
+    }
+    if (abs(headEulerX) > 10f || abs(headEulerY) > 10f || abs(headEulerZ) > 8f) {
         return FacePhotoQualityResult(false, "Başınızı kameraya düz ve göz hizasında çevirin.")
     }
     return FacePhotoQualityResult(true, "Fotoğraf kadraj kontrolünden geçti.")
@@ -64,8 +73,11 @@ fun validateFacePhoto(
                     imageWidth = image.width,
                     imageHeight = image.height,
                     faceCount = faces.size,
+                    faceLeft = face?.boundingBox?.left ?: 0,
+                    faceTop = face?.boundingBox?.top ?: 0,
                     faceWidth = face?.boundingBox?.width() ?: 0,
                     faceHeight = face?.boundingBox?.height() ?: 0,
+                    headEulerX = face?.headEulerAngleX ?: 0f,
                     headEulerY = face?.headEulerAngleY ?: 0f,
                     headEulerZ = face?.headEulerAngleZ ?: 0f
                 )

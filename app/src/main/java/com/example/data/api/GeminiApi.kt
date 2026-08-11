@@ -146,6 +146,26 @@ object GeminiRepository {
         return cleaned
     }
 
+    internal fun parseProfileAnalysisResponse(jsonText: String): ProfileAnalysisResult? {
+        return try {
+            val moshi = com.squareup.moshi.Moshi.Builder().build()
+            moshi.adapter(ProfileAnalysisResult::class.java)
+                .fromJson(cleanJson(jsonText))
+                ?.takeIf { result ->
+                    result.skinType.isNotBlank() &&
+                        result.explanation.isNotBlank() &&
+                        result.faceMapRegions.size == 6 &&
+                        result.faceMapRegions.none { region ->
+                            region.regionName.isBlank() ||
+                                region.regionName.startsWith("Bölge", ignoreCase = true) ||
+                                region.issue.isBlank()
+                        }
+                }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun getSkinCareAnalysis(
         skinType: String,
         concerns: String,
@@ -310,24 +330,32 @@ object GeminiRepository {
             Altı yüz bölgesinin tamamını yukarıdaki anatomik adlarla döndür. "Bölge 1" gibi genel adlar kullanma.
         """.trimIndent()
 
-        return try {
-            val text = aiClient.generateContent(
-                prompt = "Bu fotoğraftaki görünür cilt özelliklerini ihtiyatlı biçimde değerlendir.",
-                systemInstruction = systemPrompt,
-                bitmap = bitmap,
-                temperature = 0.3f,
-                responseMimeType = "application/json"
+        val firstText = aiClient.generateContent(
+            prompt = "Bu fotoğraftaki görünür cilt özelliklerini ihtiyatlı biçimde değerlendir.",
+            systemInstruction = systemPrompt,
+            bitmap = bitmap,
+            temperature = 0.2f,
+            responseMimeType = "application/json"
+        )
+        parseProfileAnalysisResponse(firstText)?.let { return it }
+
+        val retryText = aiClient.generateContent(
+            prompt = """
+                Önceki yanıt gerekli JSON şemasına uymadı. Fotoğrafı yeniden değerlendir.
+                Tam olarak 6 anatomik bölge döndür: Alın, T-Bölgesi ve Burun, Sol Yanak,
+                Sağ Yanak, Göz Çevresi ve Çene. Her bölgenin regionName, issue,
+                recommendedIngredient, x ve y alanları dolu olmalı. Genel "Bölge 1"
+                adları kullanma. JSON dışında hiçbir metin yazma.
+            """.trimIndent(),
+            systemInstruction = systemPrompt,
+            bitmap = bitmap,
+            temperature = 0.1f,
+            responseMimeType = "application/json"
+        )
+        return parseProfileAnalysisResponse(retryText)
+            ?: throw IllegalStateException(
+                "AI yanıtı altı anatomik yüz bölgesi için eksik veri döndürdü. Lütfen yeniden deneyin."
             )
-            val moshi = com.squareup.moshi.Moshi.Builder().build()
-            moshi.adapter(ProfileAnalysisResult::class.java).fromJson(cleanJson(text))
-                ?.takeIf { result ->
-                    result.faceMapRegions.size == 6 && result.faceMapRegions.none { region ->
-                        region.regionName.isBlank() || region.regionName.startsWith("Bölge", ignoreCase = true)
-                    }
-                }
-        } catch (e: Exception) {
-            null
-        }
     }
 
     suspend fun analyzeMakeup(photoPath: String): MakeupAnalysisResult? {

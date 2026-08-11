@@ -67,10 +67,6 @@ fun HomeScreen(
 
     val profileConcernsList = profile.skinConcerns.split(",").map { it.trim() }.filter { it.isNotBlank() }
 
-    val score = remember(profile, scanAnalysis) {
-        calculateDynamicSkinScore(profile, scanAnalysis)
-    }
-
     val hasAnalysis = hasCompletedPhotoAnalysis(scanAnalysis)
 
     val analysisDescription = scanAnalysis?.explanation
@@ -224,14 +220,14 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Cilt Sağlığı Skoru", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
-                            Text("AI tahmini • Tıbbi tanı değildir", fontSize = 11.sp, color = TextMuted)
+                            Text("Görsel Cilt Değerlendirmesi", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                            Text("Kozmetik bakım amaçlıdır • Tıbbi tanı değildir", fontSize = 11.sp, color = TextMuted)
                         }
                         Surface(
                             color = Mint100,
                             shape = CircleShape
                         ) {
-                            Text("Gerçek Analiz", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Green600, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                            Text("Tamamlandı", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Green600, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                         }
                     }
 
@@ -239,25 +235,15 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
-                        Box(modifier = Modifier.size(112.dp), contentAlignment = Alignment.Center) {
-                            if (score > 0) {
-                                CircularProgressIndicator(
-                                    progress = { score / 100f },
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = Purple500,
-                                    trackColor = BorderDefault,
-                                    strokeWidth = 10.dp,
-                                    strokeCap = StrokeCap.Round
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(if (score > 0) score.toString() else "--", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                Text(if (score > 0) "/100" else "Puan yok", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextMuted)
-                            }
+                        Box(
+                            modifier = Modifier.size(112.dp).background(Mint100, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Green600, modifier = Modifier.size(48.dp))
                         }
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("AI analiz sonucu", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
+                                Text("AI bakım özeti", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Navy900)
                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Purple500, modifier = Modifier.size(16.dp))
                             }
                             Text(analysisDescription, fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp)

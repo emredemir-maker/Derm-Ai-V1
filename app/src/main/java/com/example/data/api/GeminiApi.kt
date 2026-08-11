@@ -285,8 +285,9 @@ object GeminiRepository {
     suspend fun analyzeSkinForProfile(photoPath: String): ProfileAnalysisResult? {
         val bitmap = processBitmap(photoPath) ?: return null
         val systemPrompt = """
-            Sen profesyonel bir Dermatolog ve Yapay Zeka Makyaj/Cilt Analiz Uzmanısın.
-            Gönderilen cilt selfie fotoğrafını detaylı analiz et.
+            Bu fotoğrafı yalnızca kozmetik bakım amaçlı görsel olarak değerlendir.
+            Tıbbi teşhis koyma, hastalık adı verme veya kesinlik iddiasında bulunma.
+            Yalnızca fotoğrafta açıkça görülebilen bulguları yaz; görünmeyen ayrıntıları tahmin etme.
             Yanıtını SADECE aşağıdaki JSON formatında vermelisin. Başka metin ekleme.
             {
                 "skinType": "Kuru | Yağlı | Karma | Hassas | Normal",
@@ -295,15 +296,23 @@ object GeminiRepository {
                 "explanation": "Cilt durumunun analizi...",
                 "eyeAreaAnalysis": "Göz bölgesi analizi",
                 "makeupEvaluation": "Makyaj değerlendirmesi",
-                "skinHealthScore": 62,
-                "confidenceScore": 95,
-                "faceMapRegions": []
+                "skinHealthScore": 0,
+                "confidenceScore": 0,
+                "faceMapRegions": [
+                    {"regionName":"Alın", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.50, "y":0.22},
+                    {"regionName":"T-Bölgesi ve Burun", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.50, "y":0.43},
+                    {"regionName":"Sol Yanak", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.31, "y":0.52},
+                    {"regionName":"Sağ Yanak", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.69, "y":0.52},
+                    {"regionName":"Göz Çevresi", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.50, "y":0.35},
+                    {"regionName":"Çene", "issue":"Görülebilen bulgu", "recommendedIngredient":"Bakım içeriği", "x":0.50, "y":0.73}
+                ]
             }
+            Altı yüz bölgesinin tamamını yukarıdaki anatomik adlarla döndür. "Bölge 1" gibi genel adlar kullanma.
         """.trimIndent()
 
         return try {
             val text = aiClient.generateContent(
-                prompt = "Bu yüzü çok detaylı analiz et.",
+                prompt = "Bu fotoğraftaki görünür cilt özelliklerini ihtiyatlı biçimde değerlendir.",
                 systemInstruction = systemPrompt,
                 bitmap = bitmap,
                 temperature = 0.3f,
@@ -311,6 +320,11 @@ object GeminiRepository {
             )
             val moshi = com.squareup.moshi.Moshi.Builder().build()
             moshi.adapter(ProfileAnalysisResult::class.java).fromJson(cleanJson(text))
+                ?.takeIf { result ->
+                    result.faceMapRegions.size == 6 && result.faceMapRegions.none { region ->
+                        region.regionName.isBlank() || region.regionName.startsWith("Bölge", ignoreCase = true)
+                    }
+                }
         } catch (e: Exception) {
             null
         }

@@ -45,6 +45,7 @@ import androidx.core.content.ContextCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.example.util.validateFacePhoto
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -60,6 +61,7 @@ fun createPhotoFile(context: Context): File {
 fun CameraCaptureView(
     onPhotoCaptured: (File) -> Unit,
     onDismiss: () -> Unit,
+    requireFaceQuality: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -69,6 +71,8 @@ fun CameraCaptureView(
     if (cameraPermissionState.status.isGranted) {
         var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_FRONT) } // Front camera default for facial selfies
         var flashMode by remember { mutableStateOf(ImageCapture.FLASH_MODE_OFF) }
+        var isValidatingPhoto by remember { mutableStateOf(false) }
+        var qualityMessage by remember { mutableStateOf<String?>(null) }
 
         val preview = remember { Preview.Builder().build() }
         val imageCapture = remember { ImageCapture.Builder().build() }
@@ -260,13 +264,18 @@ fun CameraCaptureView(
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "Canlı Tarama Asistanı Aktif",
+                            text = if (isValidatingPhoto) "Fotoğraf kontrol ediliyor" else "Çekim Rehberi",
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Açı: Dengeli ✓ | Işık: Yeterli ✓\nYüzünüzü göz hizasında dik tutun ve gülümseyin.",
+                            text = qualityMessage
+                                ?: if (requireFaceQuality) {
+                                    "Gözlüğünüzü çıkarın. Yüzünüzü yaklaştırın; doğal ve önden gelen ışık kullanın."
+                                } else {
+                                    "Konuyu çerçevenin ortasına alın ve görüntünün net olduğundan emin olun."
+                                },
                             color = Color.White.copy(alpha = 0.75f),
                             fontSize = 10.sp,
                             lineHeight = 14.sp
@@ -292,7 +301,8 @@ fun CameraCaptureView(
                     modifier = Modifier
                         .size(80.dp)
                         .background(Color.White, CircleShape)
-                        .clickable {
+                        .clickable(enabled = !isValidatingPhoto) {
+                            qualityMessage = null
                             val photoFile = createPhotoFile(context)
                             val metadata = ImageCapture.Metadata().apply {
                                 isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
@@ -308,7 +318,20 @@ fun CameraCaptureView(
                                 ContextCompat.getMainExecutor(context),
                                 object : ImageCapture.OnImageSavedCallback {
                                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                        onPhotoCaptured(photoFile)
+                                        if (requireFaceQuality) {
+                                            isValidatingPhoto = true
+                                            validateFacePhoto(context, photoFile) { result ->
+                                                isValidatingPhoto = false
+                                                if (result.isAcceptable) {
+                                                    onPhotoCaptured(photoFile)
+                                                } else {
+                                                    photoFile.delete()
+                                                    qualityMessage = result.message
+                                                }
+                                            }
+                                        } else {
+                                            onPhotoCaptured(photoFile)
+                                        }
                                     }
 
                                     override fun onError(exception: ImageCaptureException) {

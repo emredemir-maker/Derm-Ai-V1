@@ -49,7 +49,8 @@ fun MakeupAnalysisScreen(
             },
             onDismiss = {
                 showCamera = false
-            }
+            },
+            requireFaceQuality = true
         )
     } else {
         Scaffold(

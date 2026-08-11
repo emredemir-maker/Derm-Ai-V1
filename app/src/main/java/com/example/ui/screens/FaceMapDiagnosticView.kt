@@ -211,7 +211,7 @@ fun FaceMapDiagnosticCard(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "AI Yüz Haritası & Teşhis",
+                        text = "AI Görsel Bakım Özeti",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Navy900,
@@ -231,21 +231,6 @@ fun FaceMapDiagnosticCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if ((analysisResult?.confidenceScore ?: 0) > 0) {
-                    Surface(
-                        color = Mint100,
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = "%${analysisResult!!.confidenceScore.coerceIn(0, 100)} AI güven tahmini",
-                            color = Green600,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
                 Button(
                     onClick = {
                         onApplyToProfile(detectedType.split(" ").first(), detectedConcerns, detectedGoal)

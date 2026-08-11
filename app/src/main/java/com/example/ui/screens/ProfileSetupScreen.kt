@@ -121,7 +121,8 @@ fun ProfileSetupScreen(
             },
             onDismiss = {
                 showCameraForScan = false
-            }
+            },
+            requireFaceQuality = true
         )
         return
     }

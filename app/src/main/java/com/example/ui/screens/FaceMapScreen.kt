@@ -49,6 +49,7 @@ fun FaceMapScreen(
                 viewModel.analyzeScanForProfile(file.absolutePath)
             },
             onDismiss = { showCameraView = false },
+            requireFaceQuality = true,
             modifier = modifier
         )
     } else {
@@ -79,14 +80,14 @@ fun FaceMapScreen(
                             Icon(Icons.Default.Face, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
                         }
                         Text(
-                            text = "Yüz Haritası Teşhisi",
+                            text = "Görsel Cilt Değerlendirmesi",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Navy900
                         )
                     }
                     Text(
-                        text = "Cildinin 6 bölgesine özel detaylı analiz ve haritalama",
+                        text = "Fotoğrafta görülebilen özelliklerin 6 yüz bölgesine göre bakım özeti",
                         fontSize = 12.sp,
                         color = TextSecondary,
                         modifier = Modifier.padding(top = 2.dp)

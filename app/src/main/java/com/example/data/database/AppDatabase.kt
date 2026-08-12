@@ -27,9 +27,17 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE skin_profile ADD COLUMN lastFaceAnalysisJson TEXT")
+        database.execSQL("ALTER TABLE skin_profile ADD COLUMN lastFacePhotoPath TEXT")
+        database.execSQL("ALTER TABLE skin_profile ADD COLUMN lastFaceAnalysisDate INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [SkinProfile::class, DiaryEntry::class, SkinTypeRecommendation::class, InventoryItem::class],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,7 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "skin_care_database"
-                ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 if (BuildConfig.DEBUG) {
                     builder.fallbackToDestructiveMigration()
                 }

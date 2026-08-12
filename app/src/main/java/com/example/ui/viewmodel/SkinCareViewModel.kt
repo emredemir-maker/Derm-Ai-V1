@@ -12,6 +12,8 @@ import com.example.data.database.SkinProfile
 import com.example.data.database.SkinTypeRecommendation
 import com.example.data.database.ProductSuggestion
 import com.example.data.database.DefaultRecommendations
+import com.example.data.database.FaceAnalysisCodec
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -144,6 +146,19 @@ class SkinCareViewModel @JvmOverloads constructor(
     private val _isScanLoading = MutableStateFlow(false)
     val isScanLoading: StateFlow<Boolean> = _isScanLoading.asStateFlow()
 
+    init {
+        viewModelScope.launch(ioDispatcher) {
+            val profile = dao.getSkinProfileDirect() ?: return@launch
+            val restoredAnalysis = FaceAnalysisCodec.decode(profile.lastFaceAnalysisJson)
+            val restoredPhotoPath = profile.lastFacePhotoPath
+                ?.takeIf { it.isNotBlank() && File(it).exists() }
+            if (restoredAnalysis != null && restoredPhotoPath != null) {
+                _scanProfileAnalysis.value = restoredAnalysis
+                _lastScannedPhotoPath.value = restoredPhotoPath
+            }
+        }
+    }
+
     fun analyzeScanForProfile(photoPath: String?) {
         _lastScannedPhotoPath.value = photoPath
         viewModelScope.launch {
@@ -188,6 +203,43 @@ class SkinCareViewModel @JvmOverloads constructor(
                 skincareGoal = goal,
                 makeupPreference = currentProfile?.makeupPreference ?: ""
             )
+        }
+    }
+
+    fun saveConfirmedFaceAnalysis(
+        skinType: String,
+        concerns: List<String>,
+        goal: String,
+        onSaved: () -> Unit = {}
+    ) {
+        val analysis = _scanProfileAnalysis.value ?: return
+        val sourcePhotoPath = _lastScannedPhotoPath.value ?: return
+
+        viewModelScope.launch(ioDispatcher) {
+            val sourcePhoto = File(sourcePhotoPath)
+            if (!sourcePhoto.exists()) return@launch
+
+            val photoDirectory = File(getApplication<Application>().filesDir, "face-analysis")
+            if (!photoDirectory.exists() && !photoDirectory.mkdirs()) return@launch
+            val permanentPhoto = File(photoDirectory, "latest-face-photo.jpg")
+            if (sourcePhoto.absolutePath != permanentPhoto.absolutePath) {
+                sourcePhoto.copyTo(permanentPhoto, overwrite = true)
+            }
+
+            val currentProfile = dao.getSkinProfileDirect() ?: return@launch
+            val updatedProfile = currentProfile.copy(
+                skinType = skinType,
+                skinConcerns = concerns.joinToString(", "),
+                skincareGoal = goal,
+                lastFaceAnalysisJson = FaceAnalysisCodec.encode(analysis),
+                lastFacePhotoPath = permanentPhoto.absolutePath,
+                lastFaceAnalysisDate = System.currentTimeMillis()
+            )
+            dao.insertSkinProfile(updatedProfile)
+            _lastScannedPhotoPath.value = permanentPhoto.absolutePath
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onSaved()
+            }
         }
     }
 
@@ -304,7 +356,10 @@ class SkinCareViewModel @JvmOverloads constructor(
                 allergies = allergies,
                 lastAnalysisRoutine = currentProfile?.lastAnalysisRoutine,
                 lastAnalysisMakeup = currentProfile?.lastAnalysisMakeup,
-                lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L
+                lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L,
+                lastFaceAnalysisJson = currentProfile?.lastFaceAnalysisJson,
+                lastFacePhotoPath = currentProfile?.lastFacePhotoPath,
+                lastFaceAnalysisDate = currentProfile?.lastFaceAnalysisDate ?: 0L
             )
             dao.insertSkinProfile(updatedProfile)
             onSaved()
@@ -345,7 +400,10 @@ class SkinCareViewModel @JvmOverloads constructor(
                     allergies = allergies,
                     lastAnalysisRoutine = currentProfile?.lastAnalysisRoutine,
                     lastAnalysisMakeup = currentProfile?.lastAnalysisMakeup,
-                    lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L
+                    lastAnalysisDate = currentProfile?.lastAnalysisDate ?: 0L,
+                    lastFaceAnalysisJson = currentProfile?.lastFaceAnalysisJson,
+                    lastFacePhotoPath = currentProfile?.lastFacePhotoPath,
+                    lastFaceAnalysisDate = currentProfile?.lastFaceAnalysisDate ?: 0L
                 )
                 // 1. Save user profile data to Room
                 dao.insertSkinProfile(profile)

@@ -187,15 +187,10 @@ fun FaceMapScreen(
                     photoPath = lastPhotoPath,
                     userConcerns = activeProfile?.skinConcerns?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList(),
                     onApplyToProfile = { skinType, concerns, goal ->
-                        viewModel.saveSkinProfile(
-                            userName = activeProfile?.userName ?: "",
-                            age = activeProfile?.age ?: 0,
-                            gender = activeProfile?.gender ?: "",
+                        viewModel.saveConfirmedFaceAnalysis(
                             skinType = skinType,
-                            skinConcerns = concerns,
-                            skincareGoal = goal,
-                            makeupPreference = activeProfile?.makeupPreference ?: "",
-                            allergies = activeProfile?.allergies ?: "",
+                            concerns = concerns,
+                            goal = goal,
                             onSaved = onAnalysisConfirmed
                         )
                     },

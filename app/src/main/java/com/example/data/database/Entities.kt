@@ -17,7 +17,10 @@ data class SkinProfile(
     val allergies: String = "", // Added for user allergies (e.g. "Parfüm, Paraben")
     val lastAnalysisRoutine: String? = null,
     val lastAnalysisMakeup: String? = null,
-    val lastAnalysisDate: Long = 0L
+    val lastAnalysisDate: Long = 0L,
+    val lastFaceAnalysisJson: String? = null,
+    val lastFacePhotoPath: String? = null,
+    val lastFaceAnalysisDate: Long = 0L
 )
 
 @Entity(tableName = "diary_entries")
